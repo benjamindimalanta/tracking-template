@@ -94,6 +94,12 @@ tracking-template/
 
 ## Changelog
 
+### 1.1.0
+
+- Responsive admin sidebar with plugin info, live snapshot, features, quick actions, and system status
+- Copy Google Ads UTM suffix button
+- Quick setup guide when no sessions exist yet
+
 ### 1.0.0
 
 - Initial public release as **Tracking Template** by Benjamin Clar

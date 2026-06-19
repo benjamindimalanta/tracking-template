@@ -10,7 +10,12 @@ class ADCT_Admin {
 		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ) );
 		add_action( 'admin_init', array( __CLASS__, 'maybe_export_csv' ) );
 		add_action( 'admin_head', array( __CLASS__, 'admin_styles' ) );
+		add_action( 'admin_footer', array( __CLASS__, 'admin_scripts' ) );
 	}
+
+	const UTM_TEMPLATE = 'utm_source=google&utm_medium=cpc&utm_campaign={campaignname}&utm_id={campaignid}&utm_term={keyword}&utm_content={creative}';
+
+	const GITHUB_REPO = 'https://github.com/benjamindimalanta/tracking-template';
 
 	public static function admin_styles() {
 		if ( empty( $_GET['page'] ) || 'tracking-template' !== $_GET['page'] ) {
@@ -18,7 +23,65 @@ class ADCT_Admin {
 		}
 		?>
 		<style>
-			.adct-wrap { max-width: 1400px; }
+			.adct-wrap { max-width: none; }
+			.adct-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 320px); gap: 24px; align-items: start; margin-top: 8px; }
+			.adct-main { min-width: 0; }
+			.adct-sidebar { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 40px; }
+			.adct-side-panel { background: #fff; border: 1px solid #e2e5ea; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.04); }
+			.adct-side-panel h3 { margin: 0 0 12px; font-size: 13px; font-weight: 700; color: #1a2332; letter-spacing: -.01em; }
+			.adct-side-panel p { margin: 0 0 10px; font-size: 12px; line-height: 1.5; color: #646970; }
+			.adct-side-panel p:last-child { margin-bottom: 0; }
+			.adct-plugin-brand { background: linear-gradient(135deg, #1a2332 0%, #2c3e55 100%); border: 0; color: #fff; }
+			.adct-plugin-brand h3 { color: #fff; font-size: 15px; margin-bottom: 4px; }
+			.adct-plugin-brand .adct-author { color: rgba(255,255,255,.75); font-size: 12px; margin-bottom: 14px; }
+			.adct-version-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+			.adct-version-item { background: rgba(255,255,255,.1); border-radius: 8px; padding: 8px 10px; }
+			.adct-version-item span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: rgba(255,255,255,.6); }
+			.adct-version-item strong { display: block; font-size: 13px; color: #fff; margin-top: 2px; }
+			.adct-side-links { display: flex; flex-wrap: wrap; gap: 8px; }
+			.adct-side-links a { font-size: 12px; color: #c9a227; text-decoration: none; font-weight: 600; }
+			.adct-side-links a:hover { text-decoration: underline; color: #e0bc4a; }
+			.adct-snapshot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+			.adct-snapshot-item { background: #f6f8fa; border-radius: 8px; padding: 10px; border: 1px solid #eceff3; }
+			.adct-snapshot-item.is-wide { grid-column: 1 / -1; }
+			.adct-snapshot-item span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #8c8f94; font-weight: 600; }
+			.adct-snapshot-item strong { display: block; font-size: 18px; color: #1a2332; margin-top: 2px; line-height: 1.2; }
+			.adct-snapshot-item em { display: block; font-size: 12px; font-style: normal; color: #1a2332; font-weight: 600; margin-top: 2px; word-break: break-word; }
+			.adct-feature-list { margin: 0; padding: 0; list-style: none; }
+			.adct-feature-list li { position: relative; padding: 6px 0 6px 22px; font-size: 12px; color: #3c434a; line-height: 1.4; border-bottom: 1px solid #f0f0f1; }
+			.adct-feature-list li:last-child { border-bottom: 0; }
+			.adct-feature-list li::before { content: '✓'; position: absolute; left: 0; color: #c9a227; font-weight: 700; }
+			.adct-side-actions { display: flex; flex-direction: column; gap: 8px; }
+			.adct-side-actions .button { width: 100%; text-align: center; justify-content: center; }
+			.adct-side-actions .button-link { width: 100%; text-align: center; }
+			.adct-utm-box { font-family: Consolas, Monaco, monospace; font-size: 11px; background: #f6f8fa; border: 1px solid #dce1e8; border-radius: 8px; padding: 10px; word-break: break-all; color: #3c434a; margin-bottom: 10px; line-height: 1.45; }
+			.adct-copy-toast { display: none; font-size: 11px; color: #1a7f37; font-weight: 600; margin-top: 6px; }
+			.adct-copy-toast.is-visible { display: block; }
+			.adct-status-list { margin: 0; padding: 0; list-style: none; }
+			.adct-status-list li { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 12px; color: #3c434a; }
+			.adct-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: #dcdcde; }
+			.adct-status-dot.is-ok { background: #34a853; box-shadow: 0 0 0 2px rgba(52,168,83,.2); }
+			.adct-status-dot.is-warn { background: #f9ab00; box-shadow: 0 0 0 2px rgba(249,171,0,.2); }
+			.adct-setup-steps { margin: 0; padding: 0 0 0 18px; font-size: 12px; color: #3c434a; line-height: 1.55; }
+			.adct-setup-steps li { margin-bottom: 8px; }
+			.adct-setup-steps li:last-child { margin-bottom: 0; }
+			@media screen and (max-width: 1280px) {
+				.adct-layout { grid-template-columns: 1fr; }
+				.adct-sidebar { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+			}
+			@media screen and (max-width: 782px) {
+				.adct-sidebar { grid-template-columns: 1fr; }
+				.adct-stats-bar { flex-direction: column; }
+				.adct-stat-card { min-width: 0; width: 100%; }
+				.adct-filters label { flex: 1 1 calc(50% - 8px); min-width: 140px; }
+				.adct-session-card > summary { grid-template-columns: auto 1fr; }
+				.adct-session-pills { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; justify-content: flex-start; margin-top: 4px; }
+			}
+			@media screen and (max-width: 480px) {
+				.adct-filters label { flex: 1 1 100%; }
+				.adct-snapshot-grid { grid-template-columns: 1fr; }
+				.adct-version-grid { grid-template-columns: 1fr; }
+			}
 			.adct-wrap > p { color: #50575e; font-size: 14px; line-height: 1.5; }
 			.adct-filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; margin: 16px 0 20px; padding: 18px; background: linear-gradient(180deg, #fff 0%, #f8f9fb 100%); border: 1px solid #dcdcde; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
 			.adct-filters label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 12px; color: #3c434a; }
@@ -598,6 +661,178 @@ class ADCT_Admin {
 		<?php
 	}
 
+	public static function format_relative_time( $datetime ) {
+		if ( empty( $datetime ) ) {
+			return '—';
+		}
+
+		$timestamp = strtotime( (string) $datetime );
+
+		if ( ! $timestamp ) {
+			return (string) $datetime;
+		}
+
+		return human_time_diff( $timestamp, current_time( 'timestamp' ) ) . ' ago';
+	}
+
+	public static function get_system_status() {
+		$tracker_path = ADCT_PLUGIN_DIR . 'assets/tracker.js';
+		$entry_path   = ADCT_PLUGIN_DIR . 'assets/entry-capture.js';
+
+		return array(
+			'woocommerce' => class_exists( 'WooCommerce' ),
+			'tracker_js'  => file_exists( $tracker_path ),
+			'entry_js'    => file_exists( $entry_path ),
+			'wp_rocket'   => defined( 'WP_ROCKET_VERSION' ),
+		);
+	}
+
+	public static function admin_scripts() {
+		if ( empty( $_GET['page'] ) || 'tracking-template' !== $_GET['page'] ) {
+			return;
+		}
+		?>
+		<script>
+		(function () {
+			var button = document.getElementById('adct-copy-utm');
+			var toast = document.getElementById('adct-copy-toast');
+			var source = document.getElementById('adct-utm-template');
+
+			if (!button || !toast || !source) {
+				return;
+			}
+
+			button.addEventListener('click', function () {
+				var text = source.textContent || '';
+
+				function showToast() {
+					toast.classList.add('is-visible');
+					window.setTimeout(function () {
+						toast.classList.remove('is-visible');
+					}, 2200);
+				}
+
+				if (navigator.clipboard && navigator.clipboard.writeText) {
+					navigator.clipboard.writeText(text).then(showToast).catch(function () {
+						window.prompt('Copy UTM suffix:', text);
+					});
+					return;
+				}
+
+				window.prompt('Copy UTM suffix:', text);
+			});
+		})();
+		</script>
+		<?php
+	}
+
+	public static function render_sidebar( array $snapshot, $export_url, $show_setup ) {
+		$status = self::get_system_status();
+		?>
+		<aside class="adct-sidebar" aria-label="Plugin sidebar">
+			<div class="adct-side-panel adct-plugin-brand">
+				<h3>Tracking Template</h3>
+				<p class="adct-author">Created by Benjamin Clar</p>
+				<div class="adct-version-grid">
+					<div class="adct-version-item">
+						<span>Plugin</span>
+						<strong>v<?php echo esc_html( ADCT_VERSION ); ?></strong>
+					</div>
+					<div class="adct-version-item">
+						<span>Database</span>
+						<strong>v<?php echo esc_html( ADCT_Database::DB_VERSION ); ?></strong>
+					</div>
+				</div>
+				<div class="adct-side-links">
+					<a href="<?php echo esc_url( self::GITHUB_REPO ); ?>" target="_blank" rel="noopener noreferrer">GitHub</a>
+					<a href="<?php echo esc_url( self::GITHUB_REPO . '/releases' ); ?>" target="_blank" rel="noopener noreferrer">Changelog</a>
+				</div>
+			</div>
+
+			<?php if ( $show_setup ) : ?>
+				<div class="adct-side-panel">
+					<h3>Quick setup</h3>
+					<ol class="adct-setup-steps">
+						<li>Open a landing page with UTMs (e.g. your Google Ads test link).</li>
+						<li>Click any contact button — WhatsApp, phone, Elfsight, or footer call.</li>
+						<li>Refresh this page to see your first session.</li>
+					</ol>
+				</div>
+			<?php endif; ?>
+
+			<div class="adct-side-panel">
+				<h3>Live snapshot</h3>
+				<div class="adct-snapshot-grid">
+					<div class="adct-snapshot-item">
+						<span>Clicks today</span>
+						<strong><?php echo esc_html( number_format_i18n( $snapshot['clicks_today'] ) ); ?></strong>
+					</div>
+					<div class="adct-snapshot-item">
+						<span>Sessions (7d)</span>
+						<strong><?php echo esc_html( number_format_i18n( $snapshot['sessions_week'] ) ); ?></strong>
+					</div>
+					<div class="adct-snapshot-item is-wide">
+						<span>Top campaign (7d)</span>
+						<em><?php echo esc_html( $snapshot['top_campaign'] ?: '—' ); ?></em>
+					</div>
+					<div class="adct-snapshot-item is-wide">
+						<span>Top landing (7d)</span>
+						<em><?php echo esc_html( $snapshot['top_landing'] ?: '—' ); ?></em>
+					</div>
+					<div class="adct-snapshot-item is-wide">
+						<span>Last click</span>
+						<em><?php echo esc_html( self::format_relative_time( $snapshot['last_click'] ) ); ?></em>
+					</div>
+				</div>
+			</div>
+
+			<div class="adct-side-panel">
+				<h3>What&rsquo;s tracked</h3>
+				<ul class="adct-feature-list">
+					<li>WhatsApp, phone &amp; showroom on product pages</li>
+					<li>Elfsight &amp; footer calls site-wide</li>
+					<li>Google Ads UTMs &amp; full landing URL</li>
+					<li>One session card per browser tab</li>
+				</ul>
+			</div>
+
+			<div class="adct-side-panel">
+				<h3>Quick actions</h3>
+				<p>Google Ads final URL suffix:</p>
+				<div class="adct-utm-box" id="adct-utm-template"><?php echo esc_html( self::UTM_TEMPLATE ); ?></div>
+				<div class="adct-side-actions">
+					<button type="button" class="button button-secondary" id="adct-copy-utm">Copy UTM suffix</button>
+					<span class="adct-copy-toast" id="adct-copy-toast">Copied to clipboard</span>
+					<a class="button button-secondary" href="<?php echo esc_url( $export_url ); ?>">Export CSV</a>
+					<a class="button button-link" href="<?php echo esc_url( self::GITHUB_REPO ); ?>" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+				</div>
+			</div>
+
+			<div class="adct-side-panel">
+				<h3>System status</h3>
+				<ul class="adct-status-list">
+					<li>
+						<span class="adct-status-dot is-ok"></span>
+						Plugin active
+					</li>
+					<li>
+						<span class="adct-status-dot <?php echo $status['woocommerce'] ? 'is-ok' : 'is-warn'; ?>"></span>
+						WooCommerce <?php echo $status['woocommerce'] ? 'detected' : 'not detected'; ?>
+					</li>
+					<li>
+						<span class="adct-status-dot <?php echo ( $status['tracker_js'] && $status['entry_js'] ) ? 'is-ok' : 'is-warn'; ?>"></span>
+						Tracking scripts ready
+					</li>
+					<li>
+						<span class="adct-status-dot <?php echo $status['wp_rocket'] ? 'is-warn' : 'is-ok'; ?>"></span>
+						<?php echo $status['wp_rocket'] ? 'WP Rocket — clear cache after updates' : 'No WP Rocket detected'; ?>
+					</li>
+				</ul>
+			</div>
+		</aside>
+		<?php
+	}
+
 	public static function register_menu() {
 		add_menu_page(
 			'Tracking Template',
@@ -748,11 +983,16 @@ class ADCT_Admin {
 		);
 		$from_item  = $list_total ? ( $offset + 1 ) : 0;
 		$to_item    = min( $offset + $per_page, $list_total );
+		$snapshot   = ADCT_Database::get_live_snapshot();
+		$export_url = wp_nonce_url( add_query_arg( array_merge( $_GET, array( 'adct_export' => 'csv' ) ), $base_url ), 'adct_export_csv' );
+		$show_setup = (int) $snapshot['total_all_time'] === 0;
 		?>
 		<div class="wrap adct-wrap">
 			<h1>Tracking Template</h1>
 			<p>Contact-click sessions with marketing attribution. Created by Benjamin Clar — expand a session to see every click, landing URL, and campaign detail.</p>
 
+			<div class="adct-layout">
+				<div class="adct-main">
 			<div class="adct-stats-bar">
 				<div class="adct-stat-card">
 					<strong><?php echo esc_html( number_format_i18n( $total_clicks ) ); ?></strong>
@@ -909,6 +1149,10 @@ class ADCT_Admin {
 				</div>
 			<?php endif; ?>
 			<?php self::render_pagination( $list_total, $per_page, $paged, $query_args ); ?>
+				</div>
+
+				<?php self::render_sidebar( $snapshot, $export_url, $show_setup ); ?>
+			</div>
 		</div>
 		<?php
 	}

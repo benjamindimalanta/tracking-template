@@ -580,4 +580,85 @@ class ADCT_Database {
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		return $wpdb->get_col( $sql );
 	}
+
+	public static function count_clicks_since( $datetime_start ) {
+		global $wpdb;
+
+		$table = self::table_name();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE clicked_at >= %s",
+				$datetime_start
+			)
+		);
+	}
+
+	public static function count_sessions_since( $datetime_start ) {
+		global $wpdb;
+
+		$table      = self::table_name();
+		$group_expr = self::get_session_group_expression();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM (
+					SELECT 1 FROM {$table} WHERE clicked_at >= %s GROUP BY {$group_expr}
+				) AS adct_period_sessions",
+				$datetime_start
+			)
+		);
+	}
+
+	public static function get_top_field_since( $field, $datetime_start ) {
+		global $wpdb;
+
+		$allowed = array(
+			'utm_campaign' => 'utm_campaign',
+			'landing_path' => 'landing_path',
+		);
+
+		if ( ! isset( $allowed[ $field ] ) ) {
+			return '';
+		}
+
+		$column = $allowed[ $field ];
+		$table  = self::table_name();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$sql = "SELECT {$column} FROM {$table}
+			WHERE clicked_at >= %s AND {$column} <> ''
+			GROUP BY {$column}
+			ORDER BY COUNT(*) DESC
+			LIMIT 1";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return (string) $wpdb->get_var( $wpdb->prepare( $sql, $datetime_start ) );
+	}
+
+	public static function get_last_clicked_at() {
+		global $wpdb;
+
+		$table = self::table_name();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return $wpdb->get_var( "SELECT MAX(clicked_at) FROM {$table}" );
+	}
+
+	public static function get_live_snapshot() {
+		$today_start = wp_date( 'Y-m-d' ) . ' 00:00:00';
+		$week_start  = wp_date( 'Y-m-d', strtotime( '-7 days' ) ) . ' 00:00:00';
+
+		return array(
+			'clicks_today'    => self::count_clicks_since( $today_start ),
+			'sessions_week'   => self::count_sessions_since( $week_start ),
+			'top_campaign'    => self::get_top_field_since( 'utm_campaign', $week_start ),
+			'top_landing'     => self::get_top_field_since( 'landing_path', $week_start ),
+			'last_click'      => self::get_last_clicked_at(),
+			'total_all_time'  => self::count_clicks( array() ),
+			'sessions_all_time' => self::count_sessions( array() ),
+		);
+	}
 }
