@@ -10,6 +10,8 @@ class ADCT_Analytics {
 
 	const DEFAULT_PERIOD = 30;
 
+	const BREAKDOWN_LIMIT = 8;
+
 	const CONTACT_COLORS = array(
 		'whatsapp'          => '#25d366',
 		'phone'             => '#3858e9',
@@ -69,51 +71,60 @@ class ADCT_Analytics {
 
 		$contact_breakdown = self::get_grouped_counts( 'contact_type', $bounds['start'], $bounds['end'] );
 		$source_breakdown  = self::get_grouped_counts( 'entry_source', $bounds['start'], $bounds['end'] );
-		$unknown_sources   = self::count_clicks_without_source( $bounds['start'], $bounds['end'] );
-
-		if ( $unknown_sources > 0 ) {
-			$source_breakdown[] = array(
-				'key'   => 'unknown',
-				'count' => $unknown_sources,
-			);
-		}
+		$campaign_breakdown = self::limit_breakdown(
+			self::get_grouped_counts( 'utm_campaign', $bounds['start'], $bounds['end'] )
+		);
+		$landing_breakdown = self::limit_breakdown(
+			self::get_grouped_counts( 'landing_path', $bounds['start'], $bounds['end'] )
+		);
 
 		$daily_clicks   = self::get_daily_clicks( $bounds['start'], $bounds['end'] );
 		$daily_sessions = self::get_daily_sessions( $bounds['start'], $bounds['end'] );
 
-		$total_clicks   = array_sum( wp_list_pluck( $contact_breakdown, 'count' ) );
-		$total_sessions = self::count_sessions_between( $bounds['start'], $bounds['end'] );
-		$total_sources  = array_sum( wp_list_pluck( $source_breakdown, 'count' ) );
+		$total_clicks    = array_sum( wp_list_pluck( $contact_breakdown, 'count' ) );
+		$total_sessions  = self::count_sessions_between( $bounds['start'], $bounds['end'] );
+		$total_attributed = array_sum( wp_list_pluck( $source_breakdown, 'count' ) );
+		$total_campaigns = array_sum( wp_list_pluck( $campaign_breakdown, 'count' ) );
 		$whatsapp_clicks = self::sum_counts_for_types( $contact_breakdown, array( 'whatsapp', 'floating_whatsapp' ) );
 		$paid_sessions   = self::count_sessions_with_sources( $bounds['start'], $bounds['end'], array( 'google_cpc' ) );
 
-		$chart_days = self::build_day_series( $bounds['start_date'], $bounds['end_date'] );
+		$chart_days        = self::build_day_series( $bounds['start_date'], $bounds['end_date'] );
 		$contact_formatted = self::format_breakdown( $contact_breakdown, $total_clicks, 'contact_type', $bounds );
-		$source_formatted  = self::format_breakdown( $source_breakdown, $total_sources, 'entry_source', $bounds );
+		$source_formatted  = self::format_breakdown( $source_breakdown, $total_attributed, 'entry_source', $bounds );
+		$campaign_formatted = self::format_breakdown( $campaign_breakdown, $total_campaigns, 'utm_campaign', $bounds );
+		$landing_formatted  = self::format_breakdown( $landing_breakdown, array_sum( wp_list_pluck( $landing_breakdown, 'count' ) ), 'landing_path', $bounds );
 
 		return array(
-			'period'            => $bounds,
-			'contact_breakdown' => $contact_formatted,
-			'source_breakdown'  => $source_formatted,
-			'totals'            => array(
-				'clicks'           => $total_clicks,
-				'sessions'         => $total_sessions,
-				'whatsapp_clicks'  => $whatsapp_clicks,
-				'paid_sessions'    => $paid_sessions,
-				'whatsapp_rate'    => self::percentage( $whatsapp_clicks, $total_clicks ),
+			'period'             => $bounds,
+			'contact_breakdown'  => $contact_formatted,
+			'source_breakdown'   => $source_formatted,
+			'campaign_breakdown' => $campaign_formatted,
+			'landing_breakdown'  => $landing_formatted,
+			'totals'             => array(
+				'clicks'            => $total_clicks,
+				'sessions'          => $total_sessions,
+				'attributed_clicks' => $total_attributed,
+				'whatsapp_clicks'   => $whatsapp_clicks,
+				'paid_sessions'     => $paid_sessions,
+				'whatsapp_rate'     => self::percentage( $whatsapp_clicks, $total_clicks ),
 				'paid_session_rate' => self::percentage( $paid_sessions, $total_sessions ),
-				'top_source'       => self::get_top_label( $source_breakdown, 'entry_source' ),
+				'top_source'        => self::get_top_label( $source_breakdown, 'entry_source' ),
+				'top_campaign'      => self::get_top_label( $campaign_breakdown, 'utm_campaign' ),
+				'top_landing'       => self::get_top_label( $landing_breakdown, 'landing_path' ),
 			),
-			'charts'            => array(
-				'labels'         => array_map( array( __CLASS__, 'format_chart_day' ), $chart_days ),
-				'clicks'         => self::map_series_to_days( $chart_days, $daily_clicks ),
-				'sessions'       => self::map_series_to_days( $chart_days, $daily_sessions ),
-				'contact_labels' => wp_list_pluck( $contact_formatted, 'label' ),
-				'contact_counts' => wp_list_pluck( $contact_formatted, 'count' ),
-				'contact_colors' => wp_list_pluck( $contact_formatted, 'color' ),
-				'source_labels'  => wp_list_pluck( $source_formatted, 'label' ),
-				'source_counts'  => wp_list_pluck( $source_formatted, 'count' ),
-				'source_colors'  => wp_list_pluck( $source_formatted, 'color' ),
+			'charts'             => array(
+				'labels'          => array_map( array( __CLASS__, 'format_chart_day' ), $chart_days ),
+				'clicks'          => self::map_series_to_days( $chart_days, $daily_clicks ),
+				'sessions'        => self::map_series_to_days( $chart_days, $daily_sessions ),
+				'contact_labels'  => wp_list_pluck( $contact_formatted, 'label' ),
+				'contact_counts'  => wp_list_pluck( $contact_formatted, 'count' ),
+				'contact_colors'  => wp_list_pluck( $contact_formatted, 'color' ),
+				'source_labels'   => wp_list_pluck( $source_formatted, 'label' ),
+				'source_counts'   => wp_list_pluck( $source_formatted, 'count' ),
+				'source_colors'   => wp_list_pluck( $source_formatted, 'color' ),
+				'campaign_labels' => wp_list_pluck( $campaign_formatted, 'label' ),
+				'campaign_counts' => wp_list_pluck( $campaign_formatted, 'count' ),
+				'campaign_colors' => wp_list_pluck( $campaign_formatted, 'color' ),
 			),
 		);
 	}
@@ -122,8 +133,10 @@ class ADCT_Analytics {
 		global $wpdb;
 
 		$allowed = array(
-			'contact_type' => 'contact_type',
-			'entry_source' => 'entry_source',
+			'contact_type'  => 'contact_type',
+			'entry_source'  => 'entry_source',
+			'utm_campaign'  => 'utm_campaign',
+			'landing_path'  => 'landing_path',
 		);
 
 		if ( ! isset( $allowed[ $field ] ) ) {
@@ -155,20 +168,27 @@ class ADCT_Analytics {
 		return $items;
 	}
 
-	private static function count_clicks_without_source( $start, $end ) {
-		global $wpdb;
+	private static function limit_breakdown( array $items ) {
+		if ( count( $items ) <= self::BREAKDOWN_LIMIT ) {
+			return $items;
+		}
 
-		$table = ADCT_Database::table_name();
+		$top    = array_slice( $items, 0, self::BREAKDOWN_LIMIT - 1 );
+		$others = array_slice( $items, self::BREAKDOWN_LIMIT - 1 );
+		$other_count = 0;
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table}
-				WHERE clicked_at >= %s AND clicked_at <= %s AND (entry_source = '' OR entry_source IS NULL)",
-				$start,
-				$end
-			)
-		);
+		foreach ( $others as $item ) {
+			$other_count += (int) $item['count'];
+		}
+
+		if ( $other_count > 0 ) {
+			$top[] = array(
+				'key'   => '__other__',
+				'count' => $other_count,
+			);
+		}
+
+		return $top;
 	}
 
 	private static function get_daily_clicks( $start, $end ) {
@@ -250,10 +270,10 @@ class ADCT_Analytics {
 			return 0;
 		}
 
-		$table      = ADCT_Database::table_name();
-		$group_expr = ADCT_Database::get_session_group_expression();
+		$table        = ADCT_Database::table_name();
+		$group_expr   = ADCT_Database::get_session_group_expression();
 		$placeholders = implode( ',', array_fill( 0, count( $sources ), '%s' ) );
-		$params     = array_merge( array( $start, $end ), $sources );
+		$params       = array_merge( array( $start, $end ), $sources );
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$sql = "SELECT COUNT(*) FROM (
@@ -269,7 +289,7 @@ class ADCT_Analytics {
 	}
 
 	private static function format_breakdown( array $items, $total, $type, array $bounds = array() ) {
-		$output = array();
+		$output  = array();
 		$palette = self::fallback_palette();
 		$index   = 0;
 
@@ -302,11 +322,19 @@ class ADCT_Analytics {
 			return ADCT_Admin::format_contact_type_label( $key );
 		}
 
-		if ( 'unknown' === $key ) {
-			return 'Unknown';
+		if ( 'entry_source' === $type ) {
+			return ADCT_Admin::format_entry_source( $key );
 		}
 
-		return ADCT_Admin::format_entry_source( $key );
+		if ( '__other__' === $key ) {
+			return 'Other';
+		}
+
+		if ( 'landing_path' === $type ) {
+			return $key;
+		}
+
+		return $key;
 	}
 
 	private static function color_for_key( $key, $type, $fallback ) {
@@ -314,11 +342,15 @@ class ADCT_Analytics {
 			return self::CONTACT_COLORS[ $key ] ?? $fallback;
 		}
 
-		if ( 'unknown' === $key ) {
+		if ( 'entry_source' === $type ) {
+			return self::SOURCE_COLORS[ $key ] ?? $fallback;
+		}
+
+		if ( '__other__' === $key ) {
 			return '#c3c4c7';
 		}
 
-		return self::SOURCE_COLORS[ $key ] ?? $fallback;
+		return $fallback;
 	}
 
 	private static function fallback_palette() {
@@ -326,6 +358,10 @@ class ADCT_Analytics {
 	}
 
 	private static function build_filter_url( $key, $type, array $bounds = array() ) {
+		if ( '__other__' === $key ) {
+			return '';
+		}
+
 		$args = array(
 			'page' => 'tracking-template-sessions',
 		);
@@ -338,12 +374,20 @@ class ADCT_Analytics {
 			$args['date_to'] = $bounds['end_date'];
 		}
 
-		if ( 'contact_type' === $type && 'unknown' !== $key ) {
+		if ( 'contact_type' === $type ) {
 			$args['contact_type'] = $key;
 		}
 
-		if ( 'entry_source' === $type && 'unknown' !== $key ) {
+		if ( 'entry_source' === $type ) {
 			$args['entry_source'] = $key;
+		}
+
+		if ( 'utm_campaign' === $type ) {
+			$args['utm_campaign'] = $key;
+		}
+
+		if ( 'landing_path' === $type ) {
+			$args['landing_path'] = $key;
 		}
 
 		return add_query_arg( $args, admin_url( 'admin.php' ) );
@@ -416,6 +460,10 @@ class ADCT_Analytics {
 				return $b['count'] <=> $a['count'];
 			}
 		);
+
+		if ( '__other__' === $items[0]['key'] && isset( $items[1] ) ) {
+			return self::format_group_label( $items[1]['key'], $type );
+		}
 
 		return self::format_group_label( $items[0]['key'], $type );
 	}

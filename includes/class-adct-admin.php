@@ -17,7 +17,7 @@ class ADCT_Admin {
 
 	public static function is_admin_page( $page = '' ) {
 		$current = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
-		$pages   = array( 'tracking-template', 'tracking-template-sessions' );
+		$pages   = array( 'tracking-template', 'tracking-template-sessions', 'tracking-template-leads' );
 
 		if ( $page ) {
 			return $current === $page;
@@ -212,6 +212,29 @@ class ADCT_Admin {
 			.adct-rate-tile { background: #f6f8fa; border: 1px solid #eceff3; border-radius: 12px; padding: 14px 16px; }
 			.adct-rate-tile span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #8c8f94; font-weight: 700; margin-bottom: 6px; }
 			.adct-rate-tile strong { display: block; font-size: 22px; color: #1a2332; }
+			.adct-overview-note { margin: 0 0 16px; color: #646970; font-size: 12px; line-height: 1.5; }
+			.adct-marketing-section + .adct-marketing-section { margin-top: 24px; padding-top: 24px; border-top: 1px solid #eceff3; }
+			.adct-marketing-section h3 { margin: 0 0 14px; font-size: 13px; font-weight: 700; color: #1a2332; }
+			.adct-leads-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+			.adct-leads-tab { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; border: 1px solid #dcdcde; background: #fff; color: #1a2332; text-decoration: none; font-size: 13px; font-weight: 600; transition: border-color .2s ease, background .2s ease, box-shadow .2s ease; }
+			.adct-leads-tab:hover { border-color: #4285f4; color: #1a2332; }
+			.adct-leads-tab.is-active { background: #1a2332; border-color: #1a2332; color: #fff; box-shadow: 0 4px 12px rgba(26,35,50,.18); }
+			.adct-leads-tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.08); font-size: 11px; font-weight: 700; }
+			.adct-leads-tab.is-active .adct-leads-tab-count { background: rgba(255,255,255,.16); color: #fff; }
+			.adct-leads-table-wrap { overflow-x: auto; border: 1px solid #e2e5ea; border-radius: 14px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.04); }
+			.adct-leads-table { width: 100%; border-collapse: collapse; min-width: 880px; }
+			.adct-leads-table th { text-align: left; padding: 12px 16px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #646970; background: #f6f8fa; border-bottom: 1px solid #eceff3; }
+			.adct-leads-table td { padding: 14px 16px; vertical-align: top; border-bottom: 1px solid #f0f0f1; font-size: 13px; color: #1d2327; }
+			.adct-leads-table tr:last-child td { border-bottom: 0; }
+			.adct-leads-table tbody tr:hover { background: #fafbfc; }
+			.adct-lead-date { font-weight: 600; color: #1a2332; white-space: nowrap; }
+			.adct-lead-product { display: flex; gap: 12px; align-items: flex-start; min-width: 240px; }
+			.adct-lead-product .adct-thumb, .adct-lead-product .adct-thumb-empty { width: 56px; height: 56px; flex: 0 0 56px; }
+			.adct-lead-product h4 { margin: 0 0 4px; font-size: 13px; line-height: 1.35; color: #1a2332; }
+			.adct-lead-product p { margin: 0; font-size: 12px; color: #646970; line-height: 1.45; }
+			.adct-lead-meta { display: grid; gap: 4px; font-size: 12px; color: #50575e; }
+			.adct-lead-meta strong { color: #1a2332; font-weight: 600; }
+			.adct-lead-empty-product { color: #646970; font-size: 12px; font-style: italic; }
 			@media screen and (max-width: 960px) {
 				.adct-summary-grid { grid-template-columns: 1fr; }
 				.adct-chart-shell { max-width: 240px; }
@@ -1013,6 +1036,15 @@ class ADCT_Admin {
 
 		add_submenu_page(
 			'tracking-template',
+			'Leads',
+			'Leads',
+			$capability,
+			'tracking-template-leads',
+			array( __CLASS__, 'render_leads_page' )
+		);
+
+		add_submenu_page(
+			'tracking-template',
 			'Sessions',
 			'Sessions',
 			$capability,
@@ -1052,20 +1084,31 @@ class ADCT_Admin {
 		$show_setup  = $page['show_setup'];
 		$sessions_url = admin_url( 'admin.php?page=tracking-template-sessions' );
 		$has_data    = ! empty( $overview['totals']['clicks'] );
+		$has_marketing = ! empty( $overview['source_breakdown'] ) || ! empty( $overview['campaign_breakdown'] ) || ! empty( $overview['landing_breakdown'] );
+		$top_kpi_label = 'Top campaign';
+		$top_kpi_value = $overview['totals']['top_campaign'];
+
+		if ( '—' === $top_kpi_value ) {
+			$top_kpi_label = 'Top source';
+			$top_kpi_value = $overview['totals']['top_source'];
+		}
 
 		wp_localize_script(
 			'adct-overview',
 			'adctOverviewConfig',
 			array(
-				'contactLabels' => $overview['charts']['contact_labels'],
-				'contactCounts' => $overview['charts']['contact_counts'],
-				'contactColors' => $overview['charts']['contact_colors'],
-				'sourceLabels'  => $overview['charts']['source_labels'],
-				'sourceCounts'  => $overview['charts']['source_counts'],
-				'sourceColors'  => $overview['charts']['source_colors'],
-				'dayLabels'     => $overview['charts']['labels'],
-				'clickSeries'   => $overview['charts']['clicks'],
-				'sessionSeries' => $overview['charts']['sessions'],
+				'contactLabels'   => $overview['charts']['contact_labels'],
+				'contactCounts'   => $overview['charts']['contact_counts'],
+				'contactColors'   => $overview['charts']['contact_colors'],
+				'sourceLabels'    => $overview['charts']['source_labels'],
+				'sourceCounts'    => $overview['charts']['source_counts'],
+				'sourceColors'    => $overview['charts']['source_colors'],
+				'campaignLabels'  => $overview['charts']['campaign_labels'],
+				'campaignCounts'  => $overview['charts']['campaign_counts'],
+				'campaignColors'  => $overview['charts']['campaign_colors'],
+				'dayLabels'       => $overview['charts']['labels'],
+				'clickSeries'     => $overview['charts']['clicks'],
+				'sessionSeries'   => $overview['charts']['sessions'],
 			)
 		);
 		?>
@@ -1073,7 +1116,7 @@ class ADCT_Admin {
 			<div class="adct-layout">
 				<header class="adct-layout-header">
 					<h1>Overview</h1>
-					<p class="adct-page-intro">A visual summary of contact clicks and visitor sessions. See which click types drive the most inquiries, how traffic sources compare, and how activity trends over time.</p>
+					<p class="adct-page-intro">A visual summary of contact clicks and visitor sessions. See which click types and marketing campaigns drive the most inquiries, and how activity trends over time.</p>
 				</header>
 
 				<div class="adct-main">
@@ -1135,7 +1178,7 @@ class ADCT_Admin {
 					<section class="adct-overview-card">
 						<div class="adct-panel-tabs" role="tablist" aria-label="Performance views">
 							<button type="button" class="adct-panel-tab is-active" data-adct-panel-tab="performance">Click performance</button>
-							<button type="button" class="adct-panel-tab" data-adct-panel-tab="sources">Traffic sources</button>
+							<button type="button" class="adct-panel-tab" data-adct-panel-tab="marketing">Marketing</button>
 						</div>
 
 						<div class="adct-panel-section is-active" data-adct-panel="performance">
@@ -1149,8 +1192,8 @@ class ADCT_Admin {
 									<strong><?php echo esc_html( number_format_i18n( $overview['totals']['sessions'] ) ); ?></strong>
 								</button>
 								<div class="adct-metric-tile is-static">
-									<span>Top source</span>
-									<strong><?php echo esc_html( $overview['totals']['top_source'] ); ?></strong>
+									<span><?php echo esc_html( $top_kpi_label ); ?></span>
+									<strong><?php echo esc_html( $top_kpi_value ); ?></strong>
 								</div>
 							</div>
 
@@ -1174,38 +1217,42 @@ class ADCT_Admin {
 							<?php endif; ?>
 						</div>
 
-						<div class="adct-panel-section" data-adct-panel="sources">
-							<?php if ( empty( $overview['source_breakdown'] ) ) : ?>
-								<div class="adct-empty">No traffic source data for this period yet.</div>
+						<div class="adct-panel-section" data-adct-panel="marketing">
+							<p class="adct-overview-note">Only clicks with marketing data are shown here — Google Ads, campaigns, landing pages, and traffic sources you can act on.</p>
+
+							<?php if ( ! $has_marketing ) : ?>
+								<div class="adct-empty">No marketing data for this period yet. Once visitors arrive from Google Ads or tagged campaigns and click a contact button, results will appear here.</div>
 							<?php else : ?>
-								<div class="adct-summary-grid">
-									<div class="adct-chart-shell">
-										<canvas id="adct-sources-chart" aria-label="Traffic sources"></canvas>
+								<?php if ( ! empty( $overview['source_breakdown'] ) ) : ?>
+									<div class="adct-marketing-section">
+										<h3>Traffic sources</h3>
+										<div class="adct-summary-grid">
+											<div class="adct-chart-shell">
+												<canvas id="adct-sources-chart" aria-label="Traffic sources"></canvas>
+											</div>
+											<?php self::render_overview_legend( $overview['source_breakdown'] ); ?>
+										</div>
 									</div>
-									<ul class="adct-legend-list">
-										<?php foreach ( $overview['source_breakdown'] as $item ) : ?>
-											<li class="adct-legend-item">
-												<?php if ( 'unknown' === $item['key'] ) : ?>
-													<div class="adct-legend-link">
-														<span class="adct-legend-swatch" style="background: <?php echo esc_attr( $item['color'] ); ?>;"></span>
-														<span class="adct-legend-label"><?php echo esc_html( $item['label'] ); ?></span>
-														<span class="adct-legend-percent"><?php echo esc_html( $item['percent'] ); ?></span>
-														<span class="adct-legend-count"><?php echo esc_html( number_format_i18n( $item['count'] ) ); ?></span>
-														<span class="adct-legend-chevron" aria-hidden="true">›</span>
-													</div>
-												<?php else : ?>
-													<a class="adct-legend-link" href="<?php echo esc_url( $item['filter_url'] ); ?>">
-														<span class="adct-legend-swatch" style="background: <?php echo esc_attr( $item['color'] ); ?>;"></span>
-														<span class="adct-legend-label"><?php echo esc_html( $item['label'] ); ?></span>
-														<span class="adct-legend-percent"><?php echo esc_html( $item['percent'] ); ?></span>
-														<span class="adct-legend-count"><?php echo esc_html( number_format_i18n( $item['count'] ) ); ?></span>
-														<span class="adct-legend-chevron" aria-hidden="true">›</span>
-													</a>
-												<?php endif; ?>
-											</li>
-										<?php endforeach; ?>
-									</ul>
-								</div>
+								<?php endif; ?>
+
+								<?php if ( ! empty( $overview['campaign_breakdown'] ) ) : ?>
+									<div class="adct-marketing-section">
+										<h3>Top campaigns</h3>
+										<div class="adct-summary-grid">
+											<div class="adct-chart-shell">
+												<canvas id="adct-campaigns-chart" aria-label="Top campaigns"></canvas>
+											</div>
+											<?php self::render_overview_legend( $overview['campaign_breakdown'] ); ?>
+										</div>
+									</div>
+								<?php endif; ?>
+
+								<?php if ( ! empty( $overview['landing_breakdown'] ) ) : ?>
+									<div class="adct-marketing-section">
+										<h3>Top landing pages</h3>
+										<?php self::render_overview_legend( $overview['landing_breakdown'] ); ?>
+									</div>
+								<?php endif; ?>
 							<?php endif; ?>
 						</div>
 					</section>
@@ -1217,12 +1264,307 @@ class ADCT_Admin {
 		<?php
 	}
 
+	public static function render_overview_legend( array $items ) {
+		?>
+		<ul class="adct-legend-list">
+			<?php foreach ( $items as $item ) : ?>
+				<li class="adct-legend-item">
+					<?php if ( empty( $item['filter_url'] ) ) : ?>
+						<div class="adct-legend-link">
+							<span class="adct-legend-swatch" style="background: <?php echo esc_attr( $item['color'] ); ?>;"></span>
+							<span class="adct-legend-label"><?php echo esc_html( $item['label'] ); ?></span>
+							<span class="adct-legend-percent"><?php echo esc_html( $item['percent'] ); ?></span>
+							<span class="adct-legend-count"><?php echo esc_html( number_format_i18n( $item['count'] ) ); ?></span>
+							<span class="adct-legend-chevron" aria-hidden="true">›</span>
+						</div>
+					<?php else : ?>
+						<a class="adct-legend-link" href="<?php echo esc_url( $item['filter_url'] ); ?>">
+							<span class="adct-legend-swatch" style="background: <?php echo esc_attr( $item['color'] ); ?>;"></span>
+							<span class="adct-legend-label"><?php echo esc_html( $item['label'] ); ?></span>
+							<span class="adct-legend-percent"><?php echo esc_html( $item['percent'] ); ?></span>
+							<span class="adct-legend-count"><?php echo esc_html( number_format_i18n( $item['count'] ) ); ?></span>
+							<span class="adct-legend-chevron" aria-hidden="true">›</span>
+						</a>
+					<?php endif; ?>
+				</li>
+			<?php endforeach; ?>
+		</ul>
+		<?php
+	}
+
+	public static function render_leads_page() {
+		if ( ! ADCT_Settings::user_can_view() ) {
+			return;
+		}
+
+		$channel      = ADCT_Leads::get_channel_from_request();
+		$filters      = ADCT_Database::get_filters_from_request();
+		$tab_filters  = $filters;
+		$filters      = ADCT_Leads::apply_channel_filter( $filters, $channel );
+		$pagination   = ADCT_Database::get_pagination_args();
+		$per_page     = $pagination['per_page'];
+		$paged        = $pagination['paged'];
+		$offset       = $pagination['offset'];
+		$list_total   = ADCT_Database::count_clicks( $filters );
+		$total_pages  = max( 1, (int) ceil( $list_total / $per_page ) );
+
+		if ( $paged > $total_pages ) {
+			$paged  = $total_pages;
+			$offset = ( $paged - 1 ) * $per_page;
+		}
+
+		$lead_rows      = ADCT_Database::get_clicks( $filters, $per_page, $offset );
+		$channel_counts = ADCT_Leads::get_channel_counts( $tab_filters );
+		$agents         = ADCT_Database::get_distinct_values( 'agent_name' );
+		$entry_sources  = ADCT_Database::get_distinct_values( 'entry_source' );
+		$campaigns      = ADCT_Database::get_distinct_values( 'utm_campaign' );
+		$page_context   = self::get_page_context();
+		$snapshot       = $page_context['snapshot'];
+		$version_info   = $page_context['version_info'];
+		$show_setup     = $page_context['show_setup'];
+		$base_url       = admin_url( 'admin.php?page=tracking-template-leads' );
+		$query_args     = array_merge(
+			$tab_filters,
+			array(
+				'page'         => 'tracking-template-leads',
+				'lead_channel' => $channel,
+				'per_page'     => $per_page,
+			)
+		);
+		$tab_query      = array_merge(
+			$tab_filters,
+			array(
+				'page'     => 'tracking-template-leads',
+				'per_page' => $per_page,
+			)
+		);
+		$from_item = $list_total ? ( $offset + 1 ) : 0;
+		$to_item   = min( $offset + $per_page, $list_total );
+		$export_url = wp_nonce_url(
+			add_query_arg(
+				array_merge(
+					$_GET,
+					array(
+						'adct_export' => 'csv',
+						'page'        => 'tracking-template-leads',
+					)
+				),
+				$base_url
+			),
+			'adct_export_csv'
+		);
+		?>
+		<div class="wrap adct-wrap">
+			<div class="adct-layout">
+				<header class="adct-layout-header">
+					<h1>Leads</h1>
+					<p class="adct-page-intro">Every contact click listed as a lead — WhatsApp, phone, showroom, and widget calls. Filter by channel, campaign, or source, or open Sessions for the full visitor journey.</p>
+				</header>
+
+				<div class="adct-main">
+					<div class="adct-leads-tabs" aria-label="Lead channels">
+						<a class="adct-leads-tab <?php echo 'all' === $channel ? 'is-active' : ''; ?>" href="<?php echo esc_url( ADCT_Leads::build_channel_tab_url( 'all', $tab_query ) ); ?>">
+							<span>All</span>
+							<span class="adct-leads-tab-count"><?php echo esc_html( number_format_i18n( $channel_counts['all'] ) ); ?></span>
+						</a>
+						<a class="adct-leads-tab <?php echo 'phone' === $channel ? 'is-active' : ''; ?>" href="<?php echo esc_url( ADCT_Leads::build_channel_tab_url( 'phone', $tab_query ) ); ?>">
+							<span>Phone</span>
+							<span class="adct-leads-tab-count"><?php echo esc_html( number_format_i18n( $channel_counts['phone'] ) ); ?></span>
+						</a>
+						<a class="adct-leads-tab <?php echo 'whatsapp' === $channel ? 'is-active' : ''; ?>" href="<?php echo esc_url( ADCT_Leads::build_channel_tab_url( 'whatsapp', $tab_query ) ); ?>">
+							<span>WhatsApp</span>
+							<span class="adct-leads-tab-count"><?php echo esc_html( number_format_i18n( $channel_counts['whatsapp'] ) ); ?></span>
+						</a>
+					</div>
+
+					<form method="get" class="adct-filters">
+						<input type="hidden" name="page" value="tracking-template-leads" />
+						<input type="hidden" name="lead_channel" value="<?php echo esc_attr( $channel ); ?>" />
+
+						<label>
+							From
+							<input type="date" name="date_from" value="<?php echo esc_attr( $filters['date_from'] ); ?>" />
+						</label>
+
+						<label>
+							To
+							<input type="date" name="date_to" value="<?php echo esc_attr( $filters['date_to'] ); ?>" />
+						</label>
+
+						<label>
+							Salesman
+							<select name="agent_name">
+								<option value="">All</option>
+								<?php foreach ( $agents as $agent ) : ?>
+									<option value="<?php echo esc_attr( $agent ); ?>" <?php selected( $filters['agent_name'], $agent ); ?>>
+										<?php echo esc_html( $agent ); ?>
+									</option>
+								<?php endforeach; ?>
+							</select>
+						</label>
+
+						<label>
+							Source
+							<select name="entry_source">
+								<option value="">All</option>
+								<?php foreach ( $entry_sources as $entry_source ) : ?>
+									<option value="<?php echo esc_attr( $entry_source ); ?>" <?php selected( $filters['entry_source'] ?? '', $entry_source ); ?>>
+										<?php echo esc_html( self::format_entry_source( $entry_source ) ); ?>
+									</option>
+								<?php endforeach; ?>
+							</select>
+						</label>
+
+						<label>
+							Campaign
+							<select name="utm_campaign">
+								<option value="">All</option>
+								<?php foreach ( $campaigns as $campaign ) : ?>
+									<option value="<?php echo esc_attr( $campaign ); ?>" <?php selected( $filters['utm_campaign'] ?? '', $campaign ); ?>>
+										<?php echo esc_html( $campaign ); ?>
+									</option>
+								<?php endforeach; ?>
+							</select>
+						</label>
+
+						<label>
+							Rows per page
+							<select name="per_page">
+								<?php foreach ( ADCT_Database::PER_PAGE_OPTIONS as $option ) : ?>
+									<option value="<?php echo esc_attr( $option ); ?>" <?php selected( $per_page, $option ); ?>>
+										<?php echo esc_html( number_format_i18n( $option ) ); ?>
+									</option>
+								<?php endforeach; ?>
+							</select>
+						</label>
+
+						<label>
+							Search
+							<input type="search" name="s" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="Car, salesman, campaign..." />
+						</label>
+
+						<?php submit_button( 'Filter', 'secondary', '', false ); ?>
+						<a class="button" href="<?php echo esc_url( add_query_arg( 'lead_channel', $channel, $base_url ) ); ?>">Reset</a>
+						<a class="button" href="<?php echo esc_url( $export_url ); ?>">Export CSV</a>
+					</form>
+
+					<div class="adct-table-toolbar">
+						<p>
+							<?php if ( $list_total ) : ?>
+								Showing <?php echo esc_html( number_format_i18n( $from_item ) ); ?>–<?php echo esc_html( number_format_i18n( $to_item ) ); ?>
+								of <?php echo esc_html( number_format_i18n( $list_total ) ); ?> leads.
+							<?php else : ?>
+								No leads to display for the current filters.
+							<?php endif; ?>
+						</p>
+					</div>
+
+					<?php if ( empty( $lead_rows ) ) : ?>
+						<div class="adct-empty">No contact leads recorded yet. When visitors click WhatsApp, phone, or other contact buttons, each click will appear here.</div>
+					<?php else : ?>
+						<div class="adct-leads-table-wrap">
+							<table class="adct-leads-table">
+								<thead>
+									<tr>
+										<th scope="col">Date</th>
+										<th scope="col">Status</th>
+										<th scope="col">Enquiry about</th>
+										<th scope="col">Source</th>
+										<th scope="col">Campaign</th>
+										<th scope="col">Salesman</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach ( $lead_rows as $row ) : ?>
+										<?php self::render_lead_row( $row ); ?>
+									<?php endforeach; ?>
+								</tbody>
+							</table>
+						</div>
+					<?php endif; ?>
+
+					<?php self::render_pagination( $list_total, $per_page, $paged, $query_args ); ?>
+				</div>
+
+				<?php self::render_sidebar( $snapshot, $export_url, $show_setup, $version_info ); ?>
+			</div>
+		</div>
+		<?php
+	}
+
+	public static function render_lead_row( $row ) {
+		$badge       = self::contact_type_badge_class( $row->contact_type ?? '' );
+		$status      = ADCT_Leads::get_lead_status_label( $row->contact_type ?? '' );
+		$has_product = ! empty( $row->product_title ) || ! empty( $row->product_id );
+		?>
+		<tr>
+			<td>
+				<div class="adct-lead-date"><?php echo esc_html( ADCT_Leads::format_lead_datetime( $row->clicked_at ?? '' ) ); ?></div>
+			</td>
+			<td>
+				<span class="adct-badge <?php echo esc_attr( $badge ); ?>"><?php echo esc_html( $status ); ?></span>
+				<div class="adct-lead-meta" style="margin-top:8px;">
+					<span><?php echo esc_html( self::format_contact_type_label( $row->contact_type ?? '' ) ); ?></span>
+				</div>
+			</td>
+			<td>
+				<?php if ( $has_product ) : ?>
+					<div class="adct-lead-product">
+						<?php if ( ! empty( $row->product_image_url ) ) : ?>
+							<img class="adct-thumb" src="<?php echo esc_url( $row->product_image_url ); ?>" alt="<?php echo esc_attr( $row->product_title ?? '' ); ?>" loading="lazy" />
+						<?php else : ?>
+							<div class="adct-thumb-empty">No image</div>
+						<?php endif; ?>
+						<div>
+							<h4><?php echo esc_html( $row->product_title ?: 'Site-wide contact' ); ?></h4>
+							<?php if ( ! empty( $row->product_price ) || ! empty( $row->product_mileage ) ) : ?>
+								<p>
+									<?php
+									echo esc_html(
+										trim(
+											implode(
+												' · ',
+												array_filter(
+													array(
+														$row->product_price ?? '',
+														$row->product_mileage ?? '',
+													)
+												)
+											)
+										)
+									);
+									?>
+								</p>
+							<?php endif; ?>
+							<?php if ( ! empty( $row->product_url ) ) : ?>
+								<p><a href="<?php echo esc_url( $row->product_url ); ?>" target="_blank" rel="noopener noreferrer">View page</a></p>
+							<?php endif; ?>
+						</div>
+					</div>
+				<?php else : ?>
+					<span class="adct-lead-empty-product">Site-wide contact</span>
+				<?php endif; ?>
+			</td>
+			<td>
+				<div class="adct-lead-meta">
+					<strong><?php echo esc_html( ! empty( $row->entry_source ) ? self::format_entry_source( $row->entry_source ) : '—' ); ?></strong>
+					<?php if ( ! empty( $row->landing_path ) ) : ?>
+						<span><?php echo esc_html( $row->landing_path ); ?></span>
+					<?php endif; ?>
+				</div>
+			</td>
+			<td><?php echo esc_html( $row->utm_campaign ?: '—' ); ?></td>
+			<td><?php echo esc_html( $row->agent_name ?: '—' ); ?></td>
+		</tr>
+		<?php
+	}
+
 	public static function maybe_export_csv() {
 		if ( ! is_admin() || ! ADCT_Settings::user_can_view() ) {
 			return;
 		}
 
-		if ( empty( $_GET['page'] ) || 'tracking-template-sessions' !== $_GET['page'] ) {
+		if ( empty( $_GET['page'] ) || ! in_array( $_GET['page'], array( 'tracking-template-sessions', 'tracking-template-leads' ), true ) ) {
 			return;
 		}
 
@@ -1233,8 +1575,13 @@ class ADCT_Admin {
 		check_admin_referer( 'adct_export_csv' );
 
 		$filters = ADCT_Database::get_filters_from_request();
+
+		if ( 'tracking-template-leads' === $_GET['page'] ) {
+			$filters = ADCT_Leads::apply_channel_filter( $filters, ADCT_Leads::get_channel_from_request() );
+		}
+
 		$rows    = ADCT_Database::get_clicks( $filters, 5000 );
-		$filename = 'tracking-template-inquiries.csv';
+		$filename = 'tracking-template-leads' === $_GET['page'] ? 'tracking-template-leads.csv' : 'tracking-template-inquiries.csv';
 		$headers  = array(
 			'Session ID',
 			'Clicked At',

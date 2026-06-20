@@ -10,6 +10,7 @@
 	var charts = {
 		summary: null,
 		sources: null,
+		campaigns: null,
 		trend: null,
 	};
 
@@ -45,27 +46,27 @@
 		};
 	}
 
-	function renderSummaryDonut() {
-		var canvas = document.getElementById('adct-summary-chart');
+	function renderDonut(key, canvasId, labels, counts, colors) {
+		var canvas = document.getElementById(canvasId);
 
 		if (!canvas) {
 			return;
 		}
 
-		destroyChart('summary');
+		destroyChart(key);
 
-		if (!config.contactCounts.length) {
+		if (!counts || !counts.length) {
 			return;
 		}
 
-		charts.summary = new Chart(canvas, {
+		charts[key] = new Chart(canvas, {
 			type: 'doughnut',
 			data: {
-				labels: config.contactLabels,
+				labels: labels,
 				datasets: [
 					{
-						data: config.contactCounts,
-						backgroundColor: config.contactColors,
+						data: counts,
+						backgroundColor: colors,
 						borderWidth: 2,
 						borderColor: '#ffffff',
 						hoverOffset: 6,
@@ -76,35 +77,34 @@
 		});
 	}
 
+	function renderSummaryDonut() {
+		renderDonut(
+			'summary',
+			'adct-summary-chart',
+			config.contactLabels,
+			config.contactCounts,
+			config.contactColors
+		);
+	}
+
 	function renderSourcesDonut() {
-		var canvas = document.getElementById('adct-sources-chart');
+		renderDonut(
+			'sources',
+			'adct-sources-chart',
+			config.sourceLabels,
+			config.sourceCounts,
+			config.sourceColors
+		);
+	}
 
-		if (!canvas) {
-			return;
-		}
-
-		destroyChart('sources');
-
-		if (!config.sourceCounts.length) {
-			return;
-		}
-
-		charts.sources = new Chart(canvas, {
-			type: 'doughnut',
-			data: {
-				labels: config.sourceLabels,
-				datasets: [
-					{
-						data: config.sourceCounts,
-						backgroundColor: config.sourceColors,
-						borderWidth: 2,
-						borderColor: '#ffffff',
-						hoverOffset: 6,
-					},
-				],
-			},
-			options: donutOptions(),
-		});
+	function renderCampaignsDonut() {
+		renderDonut(
+			'campaigns',
+			'adct-campaigns-chart',
+			config.campaignLabels,
+			config.campaignCounts,
+			config.campaignColors
+		);
 	}
 
 	function renderTrendChart(metric) {
@@ -205,8 +205,9 @@
 			item.classList.toggle('is-active', item.getAttribute('data-adct-panel') === panel);
 		});
 
-		if (panel === 'sources') {
+		if (panel === 'marketing') {
 			renderSourcesDonut();
+			renderCampaignsDonut();
 		}
 	}
 

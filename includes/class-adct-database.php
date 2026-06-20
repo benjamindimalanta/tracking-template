@@ -292,6 +292,16 @@ class ADCT_Database {
 			$params[] = $filters['contact_type'];
 		}
 
+		if ( ! empty( $filters['lead_channel'] ) && class_exists( 'ADCT_Leads' ) ) {
+			$channel_types = ADCT_Leads::get_types_for_channel( $filters['lead_channel'] );
+
+			if ( ! empty( $channel_types ) ) {
+				$placeholders = implode( ',', array_fill( 0, count( $channel_types ), '%s' ) );
+				$where[]      = "contact_type IN ({$placeholders})";
+				$params       = array_merge( $params, $channel_types );
+			}
+		}
+
 		if ( ! empty( $filters['product_id'] ) ) {
 			$where[]  = 'product_id = %d';
 			$params[] = $filters['product_id'];

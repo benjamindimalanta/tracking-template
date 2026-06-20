@@ -94,6 +94,16 @@ tracking-template/
 
 ## Changelog
 
+### 1.4.0
+
+- New Leads page with All, Phone, and WhatsApp tabs — one row per contact click
+- Lead status labels, enquiry details, source, campaign, and CSV export
+
+### 1.3.2
+
+- Overview Marketing tab: traffic sources, top campaigns, and landing pages (Unattributed removed)
+- Top campaign KPI when campaign data is available
+
 ### 1.3.0
 
 - New Overview page with contact-type donut chart, daily trend graph, and traffic sources tab
