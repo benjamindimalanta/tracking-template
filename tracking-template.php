@@ -3,7 +3,7 @@
  * Plugin Name: Tracking Template
  * Plugin URI: https://github.com/benjamindimalanta/tracking-template
  * Description: WordPress contact-click tracking with marketing attribution, session grouping, and admin reporting. A reusable template by Benjamin Clar.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Benjamin Clar
  * Author URI: https://github.com/benjamindimalanta
  * License: GPL-2.0-or-later
@@ -15,20 +15,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ADCT_VERSION', '1.1.0' );
+define( 'ADCT_VERSION', '1.2.0' );
 define( 'ADCT_PLUGIN_FILE', __FILE__ );
 define( 'ADCT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ADCT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
 require_once ADCT_PLUGIN_DIR . 'includes/class-adct-visitor.php';
 require_once ADCT_PLUGIN_DIR . 'includes/class-adct-database.php';
+require_once ADCT_PLUGIN_DIR . 'includes/class-adct-settings.php';
+require_once ADCT_PLUGIN_DIR . 'includes/class-adct-updater.php';
 require_once ADCT_PLUGIN_DIR . 'includes/class-adct-ajax.php';
 require_once ADCT_PLUGIN_DIR . 'includes/class-adct-admin.php';
 
 final class Tracking_Template_Plugin {
 
 	public static function init() {
-		register_activation_hook( ADCT_PLUGIN_FILE, array( 'ADCT_Database', 'install' ) );
+		register_activation_hook( ADCT_PLUGIN_FILE, array( __CLASS__, 'on_activate' ) );
 
 		add_action( 'plugins_loaded', array( 'ADCT_Database', 'maybe_install' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_entry_capture' ), 5 );
@@ -37,8 +39,15 @@ final class Tracking_Template_Plugin {
 		add_filter( 'rocket_delay_js_exclusions', array( __CLASS__, 'exclude_from_wp_rocket_delay' ) );
 		add_filter( 'rocket_exclude_js', array( __CLASS__, 'exclude_from_wp_rocket_minify' ) );
 
+		ADCT_Settings::init();
+		ADCT_Updater::init();
 		ADCT_Ajax::init();
 		ADCT_Admin::init();
+	}
+
+	public static function on_activate() {
+		ADCT_Database::install();
+		ADCT_Settings::sync_capabilities();
 	}
 
 	public static function exclude_from_wp_rocket_minify( $excluded ) {

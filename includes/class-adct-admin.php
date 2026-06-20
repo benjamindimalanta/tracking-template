@@ -8,6 +8,7 @@ class ADCT_Admin {
 
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ) );
+		add_action( 'admin_init', array( 'ADCT_Settings', 'maybe_save_access_settings' ) );
 		add_action( 'admin_init', array( __CLASS__, 'maybe_export_csv' ) );
 		add_action( 'admin_head', array( __CLASS__, 'admin_styles' ) );
 		add_action( 'admin_footer', array( __CLASS__, 'admin_scripts' ) );
@@ -32,8 +33,9 @@ class ADCT_Admin {
 			.adct-side-panel p { margin: 0 0 10px; font-size: 12px; line-height: 1.5; color: #646970; }
 			.adct-side-panel p:last-child { margin-bottom: 0; }
 			.adct-plugin-brand { background: linear-gradient(135deg, #1a2332 0%, #2c3e55 100%); border: 0; color: #fff; }
-			.adct-plugin-brand h3 { color: #fff; font-size: 15px; margin-bottom: 4px; }
-			.adct-plugin-brand .adct-author { color: rgba(255,255,255,.75); font-size: 12px; margin-bottom: 14px; }
+			.adct-plugin-brand h3 { color: #fff; font-size: 17px; margin: 0 0 8px; font-weight: 700; letter-spacing: -.02em; }
+			.adct-plugin-brand .adct-plugin-desc { color: rgba(255,255,255,.88); font-size: 12px; line-height: 1.5; margin: 0 0 14px; }
+			.adct-plugin-brand .adct-author { color: rgba(255,255,255,.45); font-size: 9px; margin: 12px 0 0; letter-spacing: .02em; text-transform: uppercase; }
 			.adct-version-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
 			.adct-version-item { background: rgba(255,255,255,.1); border-radius: 8px; padding: 8px 10px; }
 			.adct-version-item span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: rgba(255,255,255,.6); }
@@ -62,6 +64,18 @@ class ADCT_Admin {
 			.adct-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: #dcdcde; }
 			.adct-status-dot.is-ok { background: #34a853; box-shadow: 0 0 0 2px rgba(52,168,83,.2); }
 			.adct-status-dot.is-warn { background: #f9ab00; box-shadow: 0 0 0 2px rgba(249,171,0,.2); }
+			.adct-update-panel .adct-version-grid { margin-bottom: 12px; }
+			.adct-update-badge { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 4px 8px; border-radius: 999px; margin-bottom: 10px; }
+			.adct-update-badge.is-current { background: #e6f4ea; color: #1e7e34; }
+			.adct-update-badge.is-available { background: #fce8e6; color: #c5221f; }
+			.adct-update-note { font-size: 11px; color: #646970; margin: 0 0 10px; line-height: 1.45; }
+			.adct-role-list { margin: 0; padding: 0; list-style: none; max-height: 180px; overflow-y: auto; }
+			.adct-role-list li { padding: 6px 0; border-bottom: 1px solid #f0f0f1; }
+			.adct-role-list li:last-child { border-bottom: 0; }
+			.adct-role-list label { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #3c434a; cursor: pointer; }
+			.adct-role-list input { margin: 0; }
+			.adct-access-note { font-size: 11px; color: #646970; margin: 0 0 10px; line-height: 1.45; }
+			.adct-notice-inline { background: #edf7ed; border: 1px solid #b7dfc0; color: #1e4620; border-radius: 8px; padding: 8px 10px; font-size: 11px; margin-bottom: 10px; }
 			.adct-setup-steps { margin: 0; padding: 0 0 0 18px; font-size: 12px; color: #3c434a; line-height: 1.55; }
 			.adct-setup-steps li { margin-bottom: 8px; }
 			.adct-setup-steps li:last-child { margin-bottom: 0; }
@@ -71,25 +85,28 @@ class ADCT_Admin {
 			}
 			@media screen and (max-width: 782px) {
 				.adct-sidebar { grid-template-columns: 1fr; }
-				.adct-stats-bar { flex-direction: column; }
-				.adct-stat-card { min-width: 0; width: 100%; }
+				.adct-stats-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 				.adct-filters label { flex: 1 1 calc(50% - 8px); min-width: 140px; }
 				.adct-session-card > summary { grid-template-columns: auto 1fr; }
 				.adct-session-pills { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; justify-content: flex-start; margin-top: 4px; }
 			}
 			@media screen and (max-width: 480px) {
 				.adct-filters label { flex: 1 1 100%; }
+				.adct-stats-bar { grid-template-columns: 1fr; }
 				.adct-snapshot-grid { grid-template-columns: 1fr; }
 				.adct-version-grid { grid-template-columns: 1fr; }
 			}
 			.adct-wrap > p { color: #50575e; font-size: 14px; line-height: 1.5; }
 			.adct-filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; margin: 16px 0 20px; padding: 18px; background: linear-gradient(180deg, #fff 0%, #f8f9fb 100%); border: 1px solid #dcdcde; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
 			.adct-filters label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 12px; color: #3c434a; }
-			.adct-stats-bar { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 18px; }
-			.adct-stat-card { background: linear-gradient(135deg, #1a2332 0%, #2c3e55 100%); border: 0; border-radius: 12px; padding: 16px 20px; min-width: 180px; box-shadow: 0 4px 14px rgba(26,35,50,.18); }
-			.adct-stat-card strong { display: block; font-size: 28px; line-height: 1.1; color: #fff; font-weight: 700; }
-			.adct-stat-card span { color: rgba(255,255,255,.72); font-size: 12px; margin-top: 4px; display: block; }
+			.adct-stats-bar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 0 0 18px; }
+			.adct-stat-card { background: linear-gradient(135deg, #1a2332 0%, #2c3e55 100%); border: 0; border-radius: 12px; padding: 16px 18px; min-width: 0; box-shadow: 0 4px 14px rgba(26,35,50,.18); }
 			.adct-stat-card:nth-child(2) { background: linear-gradient(135deg, #8b6914 0%, #c9a227 100%); box-shadow: 0 4px 14px rgba(139,105,20,.22); }
+			.adct-stat-card:nth-child(3) { background: linear-gradient(135deg, #174ea6 0%, #4285f4 100%); box-shadow: 0 4px 14px rgba(23,78,166,.2); }
+			.adct-stat-card:nth-child(4) { background: linear-gradient(135deg, #2e6b4a 0%, #34a853 100%); box-shadow: 0 4px 14px rgba(46,107,74,.2); }
+			.adct-stat-card strong { display: block; font-size: 26px; line-height: 1.1; color: #fff; font-weight: 700; word-break: break-word; }
+			.adct-stat-card span { color: rgba(255,255,255,.78); font-size: 11px; margin-top: 6px; display: block; line-height: 1.35; }
+			.adct-page-intro { max-width: 720px; color: #50575e; font-size: 14px; line-height: 1.6; margin: 8px 0 20px; }
 			.adct-table-toolbar { margin: 12px 0 16px; color: #646970; font-size: 13px; }
 			.adct-pagination { margin: 20px 0 0; }
 			.adct-pagination .page-numbers { margin-right: 4px; }
@@ -726,28 +743,84 @@ class ADCT_Admin {
 		<?php
 	}
 
-	public static function render_sidebar( array $snapshot, $export_url, $show_setup ) {
-		$status = self::get_system_status();
+	public static function render_sidebar( array $snapshot, $export_url, $show_setup, array $version_info ) {
+		$status         = self::get_system_status();
+		$can_manage     = ADCT_Settings::user_can_manage();
+		$allowed_roles  = ADCT_Settings::get_allowed_roles();
+		$available_roles = ADCT_Settings::get_available_roles();
+		$access_saved   = isset( $_GET['adct_access'] ) && 'saved' === $_GET['adct_access'];
 		?>
 		<aside class="adct-sidebar" aria-label="Plugin sidebar">
 			<div class="adct-side-panel adct-plugin-brand">
 				<h3>Tracking Template</h3>
-				<p class="adct-author">Created by Benjamin Clar</p>
+				<p class="adct-plugin-desc">Tracks contact clicks with marketing attribution, groups them by visitor session, and reports everything in one admin dashboard.</p>
 				<div class="adct-version-grid">
 					<div class="adct-version-item">
-						<span>Plugin</span>
-						<strong>v<?php echo esc_html( ADCT_VERSION ); ?></strong>
+						<span>Current</span>
+						<strong>v<?php echo esc_html( $version_info['current'] ); ?></strong>
 					</div>
 					<div class="adct-version-item">
-						<span>Database</span>
-						<strong>v<?php echo esc_html( ADCT_Database::DB_VERSION ); ?></strong>
+						<span>Latest</span>
+						<strong>v<?php echo esc_html( $version_info['latest'] ); ?></strong>
 					</div>
 				</div>
 				<div class="adct-side-links">
 					<a href="<?php echo esc_url( self::GITHUB_REPO ); ?>" target="_blank" rel="noopener noreferrer">GitHub</a>
 					<a href="<?php echo esc_url( self::GITHUB_REPO . '/releases' ); ?>" target="_blank" rel="noopener noreferrer">Changelog</a>
 				</div>
+				<p class="adct-author">Created by Benjamin Clar</p>
 			</div>
+
+			<?php if ( $can_manage ) : ?>
+				<div class="adct-side-panel adct-update-panel">
+					<h3>Plugin update</h3>
+					<?php if ( ! empty( $version_info['has_update'] ) ) : ?>
+						<span class="adct-update-badge is-available">Update available</span>
+						<p class="adct-update-note">A new version is on GitHub. Update in one click — no zip download needed.</p>
+						<?php if ( ! empty( $version_info['update_url'] ) ) : ?>
+							<div class="adct-side-actions">
+								<a class="button button-primary" href="<?php echo esc_url( $version_info['update_url'] ); ?>">Update to v<?php echo esc_html( $version_info['latest'] ); ?></a>
+							</div>
+						<?php endif; ?>
+					<?php else : ?>
+						<span class="adct-update-badge is-current">Up to date</span>
+						<p class="adct-update-note">You are running the latest release from GitHub.</p>
+					<?php endif; ?>
+					<?php if ( ! empty( $version_info['error'] ) ) : ?>
+						<p class="adct-update-note">Could not check GitHub: <?php echo esc_html( $version_info['error'] ); ?></p>
+					<?php endif; ?>
+					<p style="margin-top:10px;">
+						<a href="<?php echo esc_url( wp_nonce_url( add_query_arg( 'adct_check_update', '1', admin_url( 'admin.php?page=tracking-template' ) ), 'adct_check_update' ) ); ?>">Check for updates</a>
+					</p>
+				</div>
+
+				<div class="adct-side-panel">
+					<h3>Access control</h3>
+					<?php if ( $access_saved ) : ?>
+						<div class="adct-notice-inline">Access settings saved.</div>
+					<?php endif; ?>
+					<p class="adct-access-note">Administrators always have access. Choose which other roles can view Tracking Template.</p>
+					<?php if ( empty( $available_roles ) ) : ?>
+						<p class="adct-access-note">No additional roles are available on this site.</p>
+					<?php else : ?>
+						<form method="post" action="">
+							<?php wp_nonce_field( 'adct_save_access' ); ?>
+							<input type="hidden" name="adct_save_access" value="1" />
+							<ul class="adct-role-list">
+								<?php foreach ( $available_roles as $slug => $label ) : ?>
+									<li>
+										<label>
+											<input type="checkbox" name="adct_allowed_roles[]" value="<?php echo esc_attr( $slug ); ?>" <?php checked( in_array( $slug, $allowed_roles, true ) ); ?> />
+											<?php echo esc_html( $label ); ?>
+										</label>
+									</li>
+								<?php endforeach; ?>
+							</ul>
+							<?php submit_button( 'Save access', 'secondary', 'submit', false ); ?>
+						</form>
+					<?php endif; ?>
+				</div>
+			<?php endif; ?>
 
 			<?php if ( $show_setup ) : ?>
 				<div class="adct-side-panel">
@@ -813,7 +886,7 @@ class ADCT_Admin {
 				<ul class="adct-status-list">
 					<li>
 						<span class="adct-status-dot is-ok"></span>
-						Plugin active
+						Database v<?php echo esc_html( ADCT_Database::DB_VERSION ); ?>
 					</li>
 					<li>
 						<span class="adct-status-dot <?php echo $status['woocommerce'] ? 'is-ok' : 'is-warn'; ?>"></span>
@@ -837,7 +910,7 @@ class ADCT_Admin {
 		add_menu_page(
 			'Tracking Template',
 			'Tracking Template',
-			'manage_options',
+			ADCT_Settings::CAPABILITY,
 			'tracking-template',
 			array( __CLASS__, 'render_reports_page' ),
 			'dashicons-chart-bar',
@@ -846,7 +919,7 @@ class ADCT_Admin {
 	}
 
 	public static function maybe_export_csv() {
-		if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
+		if ( ! is_admin() || ! ADCT_Settings::user_can_view() ) {
 			return;
 		}
 
@@ -938,7 +1011,7 @@ class ADCT_Admin {
 	}
 
 	public static function render_reports_page() {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! ADCT_Settings::user_can_view() ) {
 			return;
 		}
 
@@ -983,24 +1056,39 @@ class ADCT_Admin {
 		);
 		$from_item  = $list_total ? ( $offset + 1 ) : 0;
 		$to_item    = min( $offset + $per_page, $list_total );
-		$snapshot   = ADCT_Database::get_live_snapshot();
-		$export_url = wp_nonce_url( add_query_arg( array_merge( $_GET, array( 'adct_export' => 'csv' ) ), $base_url ), 'adct_export_csv' );
-		$show_setup = (int) $snapshot['total_all_time'] === 0;
+		$snapshot     = ADCT_Database::get_live_snapshot();
+		$version_info = ADCT_Updater::get_version_info();
+		$export_url   = wp_nonce_url( add_query_arg( array_merge( $_GET, array( 'adct_export' => 'csv' ) ), $base_url ), 'adct_export_csv' );
+		$show_setup   = (int) $snapshot['total_all_time'] === 0;
+
+		if ( ADCT_Settings::user_can_manage() && ! empty( $_GET['adct_check_update'] ) ) {
+			check_admin_referer( 'adct_check_update' );
+			delete_transient( ADCT_Updater::CACHE_KEY );
+			$version_info = ADCT_Updater::get_version_info( true );
+		}
 		?>
 		<div class="wrap adct-wrap">
 			<h1>Tracking Template</h1>
-			<p>Contact-click sessions with marketing attribution. Created by Benjamin Clar — expand a session to see every click, landing URL, and campaign detail.</p>
+			<p class="adct-page-intro">Tracks contact clicks with marketing attribution, groups them by visitor session, and reports everything in one admin dashboard. Expand any session to see every click, full landing URL, campaign, and page detail. Data refreshes each time you open or reload this page.</p>
 
 			<div class="adct-layout">
 				<div class="adct-main">
 			<div class="adct-stats-bar">
 				<div class="adct-stat-card">
 					<strong><?php echo esc_html( number_format_i18n( $total_clicks ) ); ?></strong>
-					<span>Total clicks (filtered)</span>
+					<span>Contact clicks<?php echo ( $filters['date_from'] || $filters['date_to'] || $filters['agent_name'] || $filters['contact_type'] || $filters['search'] ) ? ' (filtered)' : ''; ?></span>
 				</div>
 				<div class="adct-stat-card">
 					<strong><?php echo esc_html( number_format_i18n( $list_total ) ); ?></strong>
-					<span>Visitor sessions</span>
+					<span>Visitor sessions<?php echo ( $filters['date_from'] || $filters['date_to'] || $filters['agent_name'] || $filters['contact_type'] || $filters['search'] ) ? ' (filtered)' : ''; ?></span>
+				</div>
+				<div class="adct-stat-card">
+					<strong><?php echo esc_html( number_format_i18n( $snapshot['clicks_today'] ) ); ?></strong>
+					<span>Clicks today</span>
+				</div>
+				<div class="adct-stat-card">
+					<strong><?php echo esc_html( self::format_relative_time( $snapshot['last_click'] ) ); ?></strong>
+					<span>Last recorded click</span>
 				</div>
 			</div>
 
@@ -1151,7 +1239,7 @@ class ADCT_Admin {
 			<?php self::render_pagination( $list_total, $per_page, $paged, $query_args ); ?>
 				</div>
 
-				<?php self::render_sidebar( $snapshot, $export_url, $show_setup ); ?>
+				<?php self::render_sidebar( $snapshot, $export_url, $show_setup, $version_info ); ?>
 			</div>
 		</div>
 		<?php

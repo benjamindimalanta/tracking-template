@@ -94,6 +94,12 @@ tracking-template/
 
 ## Changelog
 
+### 1.2.0
+
+- Role-based access control — grant view access to available WordPress roles (Administrator always has access)
+- GitHub one-click updates with Current vs Latest version display
+- Check for updates from the admin sidebar
+
 ### 1.1.0
 
 - Responsive admin sidebar with plugin info, live snapshot, features, quick actions, and system status
