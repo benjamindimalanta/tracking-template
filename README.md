@@ -94,6 +94,10 @@ tracking-template/
 
 ## Changelog
 
+### 1.2.2
+
+- Test release to verify GitHub Releases API update check (Current vs Latest + one-click update)
+
 ### 1.2.1
 
 - Access control lists only roles that currently have users (e.g. Shop manager), not every WordPress role
