@@ -94,6 +94,11 @@ tracking-template/
 
 ## Changelog
 
+### 1.4.3
+
+- Top salesmen excludes Elfsight widget and footer showroom labels (not real salespeople)
+- Leads salesman column shows — for widget and site-wide call clicks
+
 ### 1.4.2
 
 - Overview **Click performance** panels: top cars, top salesmen, device breakdown, recent leads

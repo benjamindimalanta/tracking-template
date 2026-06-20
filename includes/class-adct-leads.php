@@ -21,6 +21,16 @@ class ADCT_Leads {
 
 	const CHANNELS = array( 'all', 'phone', 'whatsapp' );
 
+	const NON_SALESMAN_CONTACT_TYPES = array(
+		'elfsight_call',
+		'footer_landline',
+	);
+
+	const PLACEHOLDER_AGENT_NAMES = array(
+		'Elfsight Call Us',
+		'Showroom Landline',
+	);
+
 	public static function get_channel_from_request() {
 		$channel = isset( $_GET['lead_channel'] ) ? sanitize_key( wp_unslash( $_GET['lead_channel'] ) ) : 'all';
 
@@ -85,6 +95,29 @@ class ADCT_Leads {
 		}
 
 		return ADCT_Admin::format_contact_type_label( $contact_type ) . ' lead';
+	}
+
+	public static function is_salesman_attributed_click( $contact_type, $agent_name = '' ) {
+		$contact_type = sanitize_key( (string) $contact_type );
+		$agent_name   = trim( (string) $agent_name );
+
+		if ( '' === $agent_name ) {
+			return false;
+		}
+
+		if ( in_array( $contact_type, self::NON_SALESMAN_CONTACT_TYPES, true ) ) {
+			return false;
+		}
+
+		return ! in_array( $agent_name, self::PLACEHOLDER_AGENT_NAMES, true );
+	}
+
+	public static function format_salesman_name( $contact_type, $agent_name ) {
+		if ( ! self::is_salesman_attributed_click( $contact_type, $agent_name ) ) {
+			return '—';
+		}
+
+		return $agent_name;
 	}
 
 	public static function format_lead_datetime( $datetime ) {

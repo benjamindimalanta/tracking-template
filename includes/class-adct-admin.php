@@ -1330,7 +1330,7 @@ class ADCT_Admin {
 																			array(
 																				ADCT_Leads::get_lead_status_label( $lead->contact_type ?? '' ),
 																				! empty( $lead->entry_source ) ? self::format_entry_source( $lead->entry_source ) : '',
-																				$lead->agent_name ?? '',
+																				ADCT_Leads::is_salesman_attributed_click( $lead->contact_type ?? '', $lead->agent_name ?? '' ) ? $lead->agent_name : '',
 																			)
 																		)
 																	)
@@ -1746,7 +1746,7 @@ class ADCT_Admin {
 				</div>
 			</td>
 			<td><?php echo esc_html( $row->utm_campaign ?: '—' ); ?></td>
-			<td><?php echo esc_html( $row->agent_name ?: '—' ); ?></td>
+			<td><?php echo esc_html( ADCT_Leads::format_salesman_name( $row->contact_type ?? '', $row->agent_name ?? '' ) ); ?></td>
 		</tr>
 		<?php
 	}

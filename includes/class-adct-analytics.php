@@ -597,19 +597,27 @@ class ADCT_Analytics {
 	public static function get_top_agents( $start, $end, $limit = 5 ) {
 		global $wpdb;
 
-		$table = ADCT_Database::table_name();
-		$limit = absint( $limit );
+		$table           = ADCT_Database::table_name();
+		$limit           = absint( $limit );
+		$excluded_types  = ADCT_Leads::NON_SALESMAN_CONTACT_TYPES;
+		$excluded_names  = ADCT_Leads::PLACEHOLDER_AGENT_NAMES;
+		$type_placeholders = implode( ', ', array_fill( 0, count( $excluded_types ), '%s' ) );
+		$name_placeholders = implode( ', ', array_fill( 0, count( $excluded_names ), '%s' ) );
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$sql = "SELECT agent_name, COUNT(*) AS total
 			FROM {$table}
 			WHERE clicked_at >= %s AND clicked_at <= %s AND agent_name <> ''
+				AND contact_type NOT IN ({$type_placeholders})
+				AND agent_name NOT IN ({$name_placeholders})
 			GROUP BY agent_name
 			ORDER BY total DESC, agent_name ASC
 			LIMIT %d";
 
+		$params = array_merge( array( $start, $end ), $excluded_types, $excluded_names, array( $limit ) );
+
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $start, $end, $limit ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $params ) );
 
 		return is_array( $rows ) ? $rows : array();
 	}
