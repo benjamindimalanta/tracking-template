@@ -3,7 +3,7 @@
  * Plugin Name: Tracking Template
  * Plugin URI: https://github.com/benjamindimalanta/tracking-template
  * Description: WordPress contact-click tracking with marketing attribution, session grouping, and admin reporting. A reusable template by Benjamin Clar.
- * Version: 1.2.2
+ * Version: 1.3.0
  * Author: Benjamin Clar
  * Author URI: https://github.com/benjamindimalanta
  * License: GPL-2.0-or-later
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ADCT_VERSION', '1.2.2' );
+define( 'ADCT_VERSION', '1.3.0' );
 define( 'ADCT_PLUGIN_FILE', __FILE__ );
 define( 'ADCT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ADCT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -24,6 +24,7 @@ require_once ADCT_PLUGIN_DIR . 'includes/class-adct-visitor.php';
 require_once ADCT_PLUGIN_DIR . 'includes/class-adct-database.php';
 require_once ADCT_PLUGIN_DIR . 'includes/class-adct-settings.php';
 require_once ADCT_PLUGIN_DIR . 'includes/class-adct-updater.php';
+require_once ADCT_PLUGIN_DIR . 'includes/class-adct-analytics.php';
 require_once ADCT_PLUGIN_DIR . 'includes/class-adct-ajax.php';
 require_once ADCT_PLUGIN_DIR . 'includes/class-adct-admin.php';
 

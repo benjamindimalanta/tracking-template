@@ -94,6 +94,12 @@ tracking-template/
 
 ## Changelog
 
+### 1.3.0
+
+- New Overview page with contact-type donut chart, daily trend graph, and traffic sources tab
+- Overview and Sessions submenu under Tracking Template
+- Date range selector: last 7, 30, or 90 days
+
 ### 1.2.2
 
 - Test release to verify GitHub Releases API update check (Current vs Latest + one-click update)
