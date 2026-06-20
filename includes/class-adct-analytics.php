@@ -12,6 +12,20 @@ class ADCT_Analytics {
 
 	const BREAKDOWN_LIMIT = 8;
 
+	const INSIGHT_LIMIT = 5;
+
+	const TRAFFIC_CHANNELS = array(
+		'organic'         => 'Organic Traffic',
+		'google_campaign' => 'Google Campaign',
+		'referrers'       => 'Referrers',
+	);
+
+	const TRAFFIC_COLORS = array(
+		'google_campaign' => '#4285f4',
+		'organic'         => '#34a853',
+		'referrers'       => '#7c5cbf',
+	);
+
 	const CONTACT_COLORS = array(
 		'whatsapp'          => '#25d366',
 		'phone'             => '#3858e9',
@@ -94,12 +108,23 @@ class ADCT_Analytics {
 		$campaign_formatted = self::format_breakdown( $campaign_breakdown, $total_campaigns, 'utm_campaign', $bounds );
 		$landing_formatted  = self::format_breakdown( $landing_breakdown, array_sum( wp_list_pluck( $landing_breakdown, 'count' ) ), 'landing_path', $bounds );
 
+		$traffic_channels = self::get_traffic_channels( $bounds['start'], $bounds['end'], $bounds );
+		$top_products     = self::get_top_products( $bounds['start'], $bounds['end'], self::INSIGHT_LIMIT );
+		$top_agents       = self::get_top_agents( $bounds['start'], $bounds['end'], self::INSIGHT_LIMIT );
+		$device_breakdown = self::format_device_breakdown( self::get_device_counts( $bounds['start'], $bounds['end'] ) );
+		$recent_leads     = self::get_recent_leads( $bounds['start'], $bounds['end'], self::INSIGHT_LIMIT );
+
 		return array(
 			'period'             => $bounds,
 			'contact_breakdown'  => $contact_formatted,
 			'source_breakdown'   => $source_formatted,
 			'campaign_breakdown' => $campaign_formatted,
 			'landing_breakdown'  => $landing_formatted,
+			'traffic_channels'   => $traffic_channels,
+			'top_products'       => $top_products,
+			'top_agents'         => $top_agents,
+			'device_breakdown'   => $device_breakdown,
+			'recent_leads'       => $recent_leads,
 			'totals'             => array(
 				'clicks'            => $total_clicks,
 				'sessions'          => $total_sessions,
@@ -466,5 +491,190 @@ class ADCT_Analytics {
 		}
 
 		return self::format_group_label( $items[0]['key'], $type );
+	}
+
+	public static function classify_traffic_channel( $entry_source ) {
+		$entry_source = sanitize_key( (string) $entry_source );
+
+		if ( 'google_cpc' === $entry_source ) {
+			return 'google_campaign';
+		}
+
+		if ( 'google_organic' === $entry_source ) {
+			return 'organic';
+		}
+
+		if ( '' === $entry_source ) {
+			return '';
+		}
+
+		return 'referrers';
+	}
+
+	public static function get_traffic_channels( $start, $end, array $bounds = array() ) {
+		$source_breakdown = self::get_grouped_counts( 'entry_source', $start, $end );
+		$buckets          = array(
+			'google_campaign' => 0,
+			'organic'         => 0,
+			'referrers'       => 0,
+		);
+
+		foreach ( $source_breakdown as $item ) {
+			$channel = self::classify_traffic_channel( $item['key'] );
+
+			if ( '' === $channel || ! isset( $buckets[ $channel ] ) ) {
+				continue;
+			}
+
+			$buckets[ $channel ] += (int) $item['count'];
+		}
+
+		$total   = array_sum( $buckets );
+		$results = array();
+
+		foreach ( self::TRAFFIC_CHANNELS as $key => $label ) {
+			$count = (int) ( $buckets[ $key ] ?? 0 );
+			$results[] = array(
+				'key'         => $key,
+				'label'       => $label,
+				'count'       => $count,
+				'percent'     => self::percentage( $count, $total ),
+				'percent_raw' => $total > 0 ? round( ( $count / $total ) * 100, 1 ) : 0,
+				'color'       => self::TRAFFIC_COLORS[ $key ] ?? '#1a2332',
+				'filter_url'  => self::build_traffic_filter_url( $key, $bounds ),
+			);
+		}
+
+		return array(
+			'items'             => $results,
+			'total_attributed'  => $total,
+		);
+	}
+
+	private static function build_traffic_filter_url( $channel, array $bounds ) {
+		$args = array(
+			'page' => 'tracking-template-leads',
+		);
+
+		if ( ! empty( $bounds['start_date'] ) ) {
+			$args['date_from'] = $bounds['start_date'];
+		}
+
+		if ( ! empty( $bounds['end_date'] ) ) {
+			$args['date_to'] = $bounds['end_date'];
+		}
+
+		if ( 'google_campaign' === $channel ) {
+			$args['entry_source'] = 'google_cpc';
+		} elseif ( 'organic' === $channel ) {
+			$args['entry_source'] = 'google_organic';
+		}
+
+		return add_query_arg( $args, admin_url( 'admin.php' ) );
+	}
+
+	public static function get_top_products( $start, $end, $limit = 5 ) {
+		global $wpdb;
+
+		$table = ADCT_Database::table_name();
+		$limit = absint( $limit );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$sql = "SELECT product_id, product_title, product_image_url, MAX(product_price) AS product_price,
+				MAX(product_mileage) AS product_mileage, MAX(product_url) AS product_url, COUNT(*) AS total
+			FROM {$table}
+			WHERE clicked_at >= %s AND clicked_at <= %s AND product_id > 0 AND product_title <> ''
+			GROUP BY product_id, product_title, product_image_url
+			ORDER BY total DESC, product_title ASC
+			LIMIT %d";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $start, $end, $limit ) );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	public static function get_top_agents( $start, $end, $limit = 5 ) {
+		global $wpdb;
+
+		$table = ADCT_Database::table_name();
+		$limit = absint( $limit );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$sql = "SELECT agent_name, COUNT(*) AS total
+			FROM {$table}
+			WHERE clicked_at >= %s AND clicked_at <= %s AND agent_name <> ''
+			GROUP BY agent_name
+			ORDER BY total DESC, agent_name ASC
+			LIMIT %d";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $start, $end, $limit ) );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	public static function get_device_counts( $start, $end ) {
+		global $wpdb;
+
+		$table = ADCT_Database::table_name();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$sql = "SELECT device_type AS group_key, COUNT(*) AS total
+			FROM {$table}
+			WHERE clicked_at >= %s AND clicked_at <= %s AND device_type <> ''
+			GROUP BY device_type
+			ORDER BY total DESC, device_type ASC";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $start, $end ) );
+
+		$items = array();
+
+		foreach ( $rows as $row ) {
+			$items[] = array(
+				'key'   => (string) $row->group_key,
+				'count' => (int) $row->total,
+			);
+		}
+
+		return $items;
+	}
+
+	public static function format_device_breakdown( array $items ) {
+		$total   = array_sum( wp_list_pluck( $items, 'count' ) );
+		$palette = array( '#4285f4', '#34a853', '#c9a227', '#7c5cbf' );
+		$output  = array();
+
+		foreach ( $items as $index => $item ) {
+			$key = $item['key'];
+			$output[] = array(
+				'key'     => $key,
+				'label'   => ADCT_Admin::format_device_type( $key ),
+				'count'   => (int) $item['count'],
+				'percent' => self::percentage( $item['count'], $total ),
+				'color'   => $palette[ $index % count( $palette ) ],
+			);
+		}
+
+		return $output;
+	}
+
+	public static function get_recent_leads( $start, $end, $limit = 5 ) {
+		global $wpdb;
+
+		$table = ADCT_Database::table_name();
+		$limit = absint( $limit );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$sql = "SELECT * FROM {$table}
+			WHERE clicked_at >= %s AND clicked_at <= %s
+			ORDER BY clicked_at DESC
+			LIMIT %d";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $start, $end, $limit ) );
+
+		return is_array( $rows ) ? $rows : array();
 	}
 }

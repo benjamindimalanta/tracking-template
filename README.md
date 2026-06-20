@@ -94,6 +94,18 @@ tracking-template/
 
 ## Changelog
 
+### 1.4.2
+
+- Overview **Click performance** panels: top cars, top salesmen, device breakdown, recent leads
+- **Where traffic comes from** — Organic Traffic, Google Campaign, and Referrers with count and percentage
+- Subtle card depth, channel tints, and hover polish on Overview insight panels
+- Includes access control fix from 1.4.1 (Shop manager role no longer clears after refresh)
+
+### 1.4.1
+
+- Fix Access control clearing Shop manager after refresh (reliable role user counts, safer prune logic)
+- Save access from Overview, Leads, or Sessions pages
+
 ### 1.4.0
 
 - New Leads page with All, Phone, and WhatsApp tabs — one row per contact click

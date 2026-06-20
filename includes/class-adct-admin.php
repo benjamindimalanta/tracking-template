@@ -8,7 +8,6 @@ class ADCT_Admin {
 
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ) );
-		add_action( 'admin_init', array( 'ADCT_Settings', 'maybe_save_access_settings' ) );
 		add_action( 'admin_init', array( __CLASS__, 'maybe_export_csv' ) );
 		add_action( 'admin_head', array( __CLASS__, 'admin_styles' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'admin_assets' ) );
@@ -209,9 +208,70 @@ class ADCT_Admin {
 			.adct-metric-tile span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #8c8f94; font-weight: 700; margin-bottom: 6px; }
 			.adct-metric-tile strong { display: block; font-size: 24px; line-height: 1.1; color: #1a2332; }
 			.adct-rate-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
-			.adct-rate-tile { background: #f6f8fa; border: 1px solid #eceff3; border-radius: 12px; padding: 14px 16px; }
+			.adct-rate-tile { background: linear-gradient(180deg, #fff 0%, #f8fafc 100%); border: 1px solid #e2e5ea; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(26,35,50,.05); transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease; }
+			.adct-rate-tile:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(26,35,50,.08); border-color: #cfd6df; }
 			.adct-rate-tile span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #8c8f94; font-weight: 700; margin-bottom: 6px; }
 			.adct-rate-tile strong { display: block; font-size: 22px; color: #1a2332; }
+			.adct-insights-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 24px; padding-top: 24px; border-top: 1px solid #eceff3; }
+			.adct-insight-panel { position: relative; overflow: hidden; background: linear-gradient(180deg, #fff 0%, #f9fafb 100%); border: 1px solid #e2e5ea; border-radius: 14px; padding: 18px 16px 16px; min-width: 0; box-shadow: 0 2px 10px rgba(26,35,50,.05); transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease; }
+			.adct-insight-panel::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #4285f4; opacity: .85; }
+			.adct-insight-panel.is-cars::before { background: linear-gradient(90deg, #4285f4, #6ea6ff); }
+			.adct-insight-panel.is-agents::before { background: linear-gradient(90deg, #c9a227, #e0bc5a); }
+			.adct-insight-panel.is-devices::before { background: linear-gradient(90deg, #34a853, #5bc47a); }
+			.adct-insight-panel:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(26,35,50,.08); border-color: #cfd6df; }
+			.adct-insight-panel h3 { margin: 0 0 12px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #646970; }
+			.adct-insight-list { margin: 0; padding: 0; list-style: none; }
+			.adct-insight-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 10px; margin: 0 -6px; font-size: 13px; border-radius: 8px; transition: background .18s ease, transform .18s ease; }
+			.adct-insight-item + .adct-insight-item { border-top: 1px solid #eef1f4; margin-top: 2px; }
+			.adct-insight-item:hover { background: rgba(66,133,244,.06); transform: translateX(3px); }
+			.adct-insight-label { font-weight: 600; color: #1a2332; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+			.adct-insight-count { font-weight: 700; color: #1a2332; white-space: nowrap; background: #eef2f7; padding: 3px 9px; border-radius: 999px; font-size: 12px; transition: background .18s ease, color .18s ease; }
+			.adct-insight-item:hover .adct-insight-count { background: #e3ecfb; color: #1a4b91; }
+			.adct-insight-item.is-rank-1 .adct-insight-count { background: #fff4dd; color: #8a6a12; }
+			.adct-insight-item.is-rank-2 .adct-insight-count { background: #f0f2f5; color: #50575e; }
+			.adct-insight-item.is-rank-3 .adct-insight-count { background: #f7efe8; color: #7a4f2e; }
+			.adct-insight-device { grid-template-columns: 14px minmax(0, 1fr) auto; }
+			.adct-insight-swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 2px rgba(255,255,255,.9); }
+			.adct-insight-empty { margin: 0; font-size: 12px; color: #646970; font-style: italic; }
+			.adct-traffic-section { margin-top: 24px; padding-top: 24px; border-top: 1px solid #eceff3; }
+			.adct-traffic-section h3 { margin: 0 0 6px; font-size: 13px; font-weight: 700; color: #1a2332; }
+			.adct-traffic-note { margin: 0 0 14px; font-size: 12px; color: #646970; line-height: 1.45; }
+			.adct-traffic-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+			.adct-traffic-tile { position: relative; background: #fff; border: 1px solid #e2e5ea; border-radius: 14px; padding: 18px 16px 16px; box-shadow: 0 2px 10px rgba(26,35,50,.05); border-left: 3px solid transparent; transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease; }
+			.adct-traffic-tile.is-channel-organic { background: linear-gradient(135deg, #fff 0%, #f3fbf5 100%); border-left-color: #34a853; }
+			.adct-traffic-tile.is-channel-google_campaign { background: linear-gradient(135deg, #fff 0%, #f3f7ff 100%); border-left-color: #4285f4; }
+			.adct-traffic-tile.is-channel-referrers { background: linear-gradient(135deg, #fff 0%, #f7f4fc 100%); border-left-color: #7c5cbf; }
+			.adct-traffic-tile:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(26,35,50,.1); border-color: #cfd6df; }
+			.adct-traffic-tile-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+			.adct-traffic-swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 3px rgba(255,255,255,.85); transition: transform .22s ease; }
+			.adct-traffic-tile:hover .adct-traffic-swatch { transform: scale(1.15); }
+			.adct-traffic-tile-head span:last-child { font-size: 12px; font-weight: 700; color: #50575e; }
+			.adct-traffic-stats { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; }
+			.adct-traffic-stats strong { font-size: 28px; line-height: 1; color: #1a2332; letter-spacing: -.02em; }
+			.adct-traffic-stats em { font-style: normal; font-size: 14px; font-weight: 700; color: #646970; background: rgba(255,255,255,.7); padding: 2px 8px; border-radius: 999px; }
+			.adct-traffic-bar { height: 7px; border-radius: 999px; background: rgba(26,35,50,.08); overflow: hidden; }
+			.adct-traffic-bar span { display: block; height: 100%; border-radius: inherit; min-width: 0; transition: width .65s cubic-bezier(.22,1,.36,1); box-shadow: inset 0 -1px 0 rgba(255,255,255,.25); }
+			.adct-traffic-link { display: inline-block; margin: 12px 0 0; font-size: 11px; font-weight: 600; color: #2271b1; text-decoration: none; opacity: .85; transition: opacity .18s ease, transform .18s ease, color .18s ease; }
+			.adct-traffic-link:hover { opacity: 1; color: #135e96; transform: translateX(2px); }
+			.adct-recent-leads { margin-top: 24px; padding-top: 24px; border-top: 1px solid #eceff3; }
+			.adct-recent-leads-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+			.adct-recent-leads-head h3 { margin: 0; font-size: 13px; font-weight: 700; color: #1a2332; }
+			.adct-recent-leads-head a { font-size: 12px; font-weight: 600; color: #2271b1; text-decoration: none; padding: 4px 10px; border-radius: 999px; background: #eef4fd; transition: background .18s ease, color .18s ease, transform .18s ease; }
+			.adct-recent-leads-head a:hover { background: #dce9fb; color: #135e96; transform: translateY(-1px); text-decoration: none; }
+			.adct-recent-leads-list { margin: 0; padding: 0; list-style: none; border: 1px solid #e2e5ea; border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 2px 10px rgba(26,35,50,.05); }
+			.adct-recent-lead-item { display: grid; grid-template-columns: minmax(120px, auto) minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 13px 16px; font-size: 12px; transition: background .18s ease; }
+			.adct-recent-lead-item + .adct-recent-lead-item { border-top: 1px solid #f0f0f1; }
+			.adct-recent-lead-item:hover { background: linear-gradient(90deg, rgba(238,244,253,.55) 0%, #fff 100%); }
+			.adct-recent-lead-date { font-weight: 600; color: #1a2332; white-space: nowrap; }
+			.adct-recent-lead-main { min-width: 0; }
+			.adct-recent-lead-main strong { display: block; font-size: 13px; color: #1a2332; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color .18s ease; }
+			.adct-recent-lead-item:hover .adct-recent-lead-main strong { color: #135e96; }
+			.adct-recent-lead-main span { color: #646970; }
+			@media (prefers-reduced-motion: reduce) {
+				.adct-rate-tile, .adct-insight-panel, .adct-insight-item, .adct-traffic-tile, .adct-traffic-swatch, .adct-traffic-bar span, .adct-traffic-link, .adct-recent-leads-head a, .adct-recent-lead-item { transition: none; }
+				.adct-rate-tile:hover, .adct-insight-panel:hover, .adct-traffic-tile:hover { transform: none; }
+				.adct-insight-item:hover { transform: none; }
+			}
 			.adct-overview-note { margin: 0 0 16px; color: #646970; font-size: 12px; line-height: 1.5; }
 			.adct-marketing-section + .adct-marketing-section { margin-top: 24px; padding-top: 24px; border-top: 1px solid #eceff3; }
 			.adct-marketing-section h3 { margin: 0 0 14px; font-size: 13px; font-weight: 700; color: #1a2332; }
@@ -240,6 +300,7 @@ class ADCT_Admin {
 				.adct-chart-shell { max-width: 240px; }
 				.adct-metric-grid { grid-template-columns: 1fr; }
 				.adct-rate-grid { grid-template-columns: 1fr; }
+				.adct-insights-grid, .adct-traffic-grid { grid-template-columns: 1fr; }
 			}
 
 			/* Session cards */
@@ -1083,6 +1144,7 @@ class ADCT_Admin {
 		$version_info = $page['version_info'];
 		$show_setup  = $page['show_setup'];
 		$sessions_url = admin_url( 'admin.php?page=tracking-template-sessions' );
+		$leads_url    = admin_url( 'admin.php?page=tracking-template-leads' );
 		$has_data    = ! empty( $overview['totals']['clicks'] );
 		$has_marketing = ! empty( $overview['source_breakdown'] ) || ! empty( $overview['campaign_breakdown'] ) || ! empty( $overview['landing_breakdown'] );
 		$top_kpi_label = 'Top campaign';
@@ -1212,6 +1274,81 @@ class ADCT_Admin {
 										<strong><?php echo esc_html( $overview['totals']['paid_session_rate'] ); ?></strong>
 									</div>
 								</div>
+
+								<div class="adct-insights-grid">
+									<div class="adct-insight-panel is-cars">
+										<h3>Top cars</h3>
+										<?php self::render_overview_rank_list( $overview['top_products'], 'product_title', 'total' ); ?>
+									</div>
+									<div class="adct-insight-panel is-agents">
+										<h3>Top salesmen</h3>
+										<?php self::render_overview_rank_list( $overview['top_agents'], 'agent_name', 'total' ); ?>
+									</div>
+									<div class="adct-insight-panel is-devices">
+										<h3>Devices</h3>
+										<?php if ( ! empty( $overview['device_breakdown'] ) ) : ?>
+											<ul class="adct-insight-list">
+												<?php foreach ( $overview['device_breakdown'] as $item ) : ?>
+													<li class="adct-insight-item adct-insight-device">
+														<span class="adct-insight-swatch" style="background: <?php echo esc_attr( $item['color'] ); ?>;"></span>
+														<span class="adct-insight-label"><?php echo esc_html( $item['label'] ); ?></span>
+														<span class="adct-insight-count"><?php echo esc_html( number_format_i18n( $item['count'] ) ); ?> · <?php echo esc_html( $item['percent'] ); ?></span>
+													</li>
+												<?php endforeach; ?>
+											</ul>
+										<?php else : ?>
+											<p class="adct-insight-empty">No device data yet.</p>
+										<?php endif; ?>
+									</div>
+								</div>
+
+								<div class="adct-traffic-section">
+									<h3>Where traffic comes from</h3>
+									<p class="adct-traffic-note">Attributed contact clicks grouped by channel. Count and share of all clicks with a known source in this period.</p>
+									<?php self::render_overview_traffic_channels( $overview['traffic_channels'] ); ?>
+								</div>
+
+								<div class="adct-recent-leads">
+									<div class="adct-recent-leads-head">
+										<h3>Recent leads</h3>
+										<a href="<?php echo esc_url( $leads_url ); ?>">View all leads</a>
+									</div>
+									<?php if ( ! empty( $overview['recent_leads'] ) ) : ?>
+										<ul class="adct-recent-leads-list">
+											<?php foreach ( $overview['recent_leads'] as $lead ) : ?>
+												<li class="adct-recent-lead-item">
+													<span class="adct-recent-lead-date"><?php echo esc_html( ADCT_Leads::format_lead_datetime( $lead->clicked_at ?? '' ) ); ?></span>
+													<div class="adct-recent-lead-main">
+														<strong><?php echo esc_html( $lead->product_title ?: 'Site-wide contact' ); ?></strong>
+														<span>
+															<?php
+															echo esc_html(
+																trim(
+																	implode(
+																		' · ',
+																		array_filter(
+																			array(
+																				ADCT_Leads::get_lead_status_label( $lead->contact_type ?? '' ),
+																				! empty( $lead->entry_source ) ? self::format_entry_source( $lead->entry_source ) : '',
+																				$lead->agent_name ?? '',
+																			)
+																		)
+																	)
+																)
+															);
+															?>
+														</span>
+													</div>
+													<span class="adct-badge <?php echo esc_attr( self::contact_type_badge_class( $lead->contact_type ?? '' ) ); ?>">
+														<?php echo esc_html( self::format_contact_type_label( $lead->contact_type ?? '' ) ); ?>
+													</span>
+												</li>
+											<?php endforeach; ?>
+										</ul>
+									<?php else : ?>
+										<p class="adct-insight-empty">No leads in this period yet.</p>
+									<?php endif; ?>
+								</div>
 							<?php else : ?>
 								<div class="adct-empty">Performance trends will appear here once clicks are recorded.</div>
 							<?php endif; ?>
@@ -1260,6 +1397,61 @@ class ADCT_Admin {
 
 				<?php self::render_sidebar( $snapshot, '', $show_setup, $version_info ); ?>
 			</div>
+		</div>
+		<?php
+	}
+
+	public static function render_overview_rank_list( $rows, $label_key, $count_key ) {
+		if ( empty( $rows ) ) {
+			echo '<p class="adct-insight-empty">No data yet.</p>';
+			return;
+		}
+		?>
+		<ul class="adct-insight-list">
+			<?php foreach ( $rows as $index => $row ) : ?>
+				<?php
+				$rank_class = '';
+
+				if ( $index < 3 ) {
+					$rank_class = ' is-rank-' . ( $index + 1 );
+				}
+				?>
+				<li class="adct-insight-item<?php echo esc_attr( $rank_class ); ?>">
+					<span class="adct-insight-label"><?php echo esc_html( $row->{$label_key} ?? '' ); ?></span>
+					<span class="adct-insight-count"><?php echo esc_html( number_format_i18n( (int) ( $row->{$count_key} ?? 0 ) ) ); ?></span>
+				</li>
+			<?php endforeach; ?>
+		</ul>
+		<?php
+	}
+
+	public static function render_overview_traffic_channels( array $traffic_channels ) {
+		$items = $traffic_channels['items'] ?? array();
+
+		if ( empty( $traffic_channels['total_attributed'] ) ) {
+			echo '<p class="adct-insight-empty">No attributed traffic yet. Once visitors arrive from Google, ads, or referrals and click contact, channels will appear here.</p>';
+			return;
+		}
+		?>
+		<div class="adct-traffic-grid">
+			<?php foreach ( $items as $item ) : ?>
+				<div class="adct-traffic-tile is-channel-<?php echo esc_attr( $item['key'] ); ?>">
+					<div class="adct-traffic-tile-head">
+						<span class="adct-traffic-swatch" style="background: <?php echo esc_attr( $item['color'] ); ?>;"></span>
+						<span><?php echo esc_html( $item['label'] ); ?></span>
+					</div>
+					<div class="adct-traffic-stats">
+						<strong><?php echo esc_html( number_format_i18n( $item['count'] ) ); ?></strong>
+						<em><?php echo esc_html( $item['percent'] ); ?></em>
+					</div>
+					<div class="adct-traffic-bar" aria-hidden="true">
+						<span style="width: <?php echo esc_attr( min( 100, max( 0, (float) $item['percent_raw'] ) ) ); ?>%; background: <?php echo esc_attr( $item['color'] ); ?>;"></span>
+					</div>
+					<?php if ( ! empty( $item['filter_url'] ) && 'referrers' !== $item['key'] ) : ?>
+						<a class="adct-traffic-link" href="<?php echo esc_url( $item['filter_url'] ); ?>">View leads →</a>
+					<?php endif; ?>
+				</div>
+			<?php endforeach; ?>
 		</div>
 		<?php
 	}

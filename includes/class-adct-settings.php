@@ -10,9 +10,26 @@ class ADCT_Settings {
 
 	const OPTION_ALLOWED_ROLES = 'tt_allowed_roles';
 
+	const PLUGIN_PAGES = array(
+		'tracking-template',
+		'tracking-template-sessions',
+		'tracking-template-leads',
+	);
+
 	public static function init() {
 		add_action( 'init', array( __CLASS__, 'sync_capabilities' ), 20 );
-		add_action( 'admin_init', array( __CLASS__, 'prune_inactive_allowed_roles' ) );
+		add_action( 'admin_init', array( __CLASS__, 'maybe_save_access_settings' ) );
+		add_action( 'admin_init', array( __CLASS__, 'maybe_prune_allowed_roles' ), 99 );
+	}
+
+	public static function is_plugin_admin_page( $page = '' ) {
+		$current = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+
+		if ( $page ) {
+			return $current === $page;
+		}
+
+		return in_array( $current, self::PLUGIN_PAGES, true );
 	}
 
 	public static function user_can_view() {
@@ -33,32 +50,55 @@ class ADCT_Settings {
 		return array_values( array_unique( array_map( 'sanitize_key', $roles ) ) );
 	}
 
-	public static function get_available_roles() {
-		if ( ! function_exists( 'count_users' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/user.php';
+	public static function count_users_for_role( $role_slug ) {
+		$role_slug = sanitize_key( (string) $role_slug );
+
+		if ( '' === $role_slug ) {
+			return 0;
 		}
 
-		if ( ! function_exists( 'get_editable_roles' ) ) {
+		if ( ! function_exists( 'count_users' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/user.php';
 		}
 
 		$user_counts = count_users();
 		$active      = isset( $user_counts['avail_roles'] ) ? $user_counts['avail_roles'] : array();
-		$editable    = get_editable_roles();
-		$available   = array();
 
-		foreach ( $active as $slug => $user_count ) {
-			$user_count = (int) $user_count;
+		if ( isset( $active[ $role_slug ] ) ) {
+			return (int) $active[ $role_slug ];
+		}
 
-			if ( 'administrator' === $slug || $user_count < 1 ) {
+		$query = new WP_User_Query(
+			array(
+				'role'   => $role_slug,
+				'fields' => 'ID',
+				'number' => 1,
+			)
+		);
+
+		return (int) $query->get_total();
+	}
+
+	public static function get_available_roles() {
+		if ( ! function_exists( 'get_editable_roles' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+		}
+
+		$editable  = get_editable_roles();
+		$available = array();
+
+		foreach ( $editable as $slug => $details ) {
+			if ( 'administrator' === $slug ) {
 				continue;
 			}
 
-			if ( ! isset( $editable[ $slug ] ) ) {
+			$user_count = self::count_users_for_role( $slug );
+
+			if ( $user_count < 1 ) {
 				continue;
 			}
 
-			$label = translate_user_role( $editable[ $slug ]['name'] );
+			$label = translate_user_role( $details['name'] );
 			$available[ $slug ] = sprintf(
 				'%s (%s)',
 				$label,
@@ -89,13 +129,30 @@ class ADCT_Settings {
 		self::sync_capabilities();
 	}
 
-	public static function prune_inactive_allowed_roles() {
-		$active  = array_keys( self::get_available_roles() );
+	public static function maybe_prune_allowed_roles() {
+		if ( ! is_admin() || ! self::user_can_manage() || ! self::is_plugin_admin_page() ) {
+			return;
+		}
+
 		$allowed = self::get_allowed_roles();
-		$pruned  = array_values( array_intersect( $allowed, $active ) );
+
+		if ( empty( $allowed ) ) {
+			return;
+		}
+
+		$pruned = array();
+
+		foreach ( $allowed as $slug ) {
+			if ( self::count_users_for_role( $slug ) > 0 ) {
+				$pruned[] = $slug;
+			}
+		}
+
+		$pruned = array_values( array_unique( $pruned ) );
 
 		if ( $pruned !== $allowed ) {
 			update_option( self::OPTION_ALLOWED_ROLES, $pruned );
+			self::sync_capabilities();
 		}
 	}
 
@@ -136,7 +193,9 @@ class ADCT_Settings {
 			return;
 		}
 
-		if ( empty( $_GET['page'] ) || 'tracking-template' !== $_GET['page'] ) {
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+
+		if ( ! in_array( $page, self::PLUGIN_PAGES, true ) ) {
 			return;
 		}
 
@@ -148,8 +207,8 @@ class ADCT_Settings {
 		wp_safe_redirect(
 			add_query_arg(
 				array(
-					'page'         => 'tracking-template',
-					'adct_access'  => 'saved',
+					'page'        => $page,
+					'adct_access' => 'saved',
 				),
 				admin_url( 'admin.php' )
 			)
