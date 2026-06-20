@@ -26,17 +26,9 @@ class ADCT_Updater {
 		return ltrim( (string) $version, 'vV' );
 	}
 
-	public static function fetch_latest_release( $force = false ) {
-		if ( ! $force ) {
-			$cached = get_transient( self::CACHE_KEY );
-
-			if ( is_array( $cached ) && ! empty( $cached['version'] ) ) {
-				return $cached;
-			}
-		}
-
-		$response = wp_remote_get(
-			'https://api.github.com/repos/' . self::GITHUB_REPO . '/releases/latest',
+	private static function github_get( $url ) {
+		return wp_remote_get(
+			$url,
 			array(
 				'timeout' => 15,
 				'headers' => array(
@@ -45,6 +37,10 @@ class ADCT_Updater {
 				),
 			)
 		);
+	}
+
+	private static function fetch_latest_tag() {
+		$response = self::github_get( 'https://api.github.com/repos/' . self::GITHUB_REPO . '/tags' );
 
 		if ( is_wp_error( $response ) ) {
 			return array(
@@ -56,6 +52,61 @@ class ADCT_Updater {
 		}
 
 		$code = (int) wp_remote_retrieve_response_code( $response );
+
+		if ( 200 !== $code ) {
+			return array(
+				'version'      => ADCT_VERSION,
+				'download_url' => '',
+				'html_url'     => 'https://github.com/' . self::GITHUB_REPO . '/releases',
+				'error'        => 'GitHub API returned HTTP ' . $code,
+			);
+		}
+
+		$tags = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( empty( $tags[0]['name'] ) ) {
+			return array(
+				'version'      => ADCT_VERSION,
+				'download_url' => '',
+				'html_url'     => 'https://github.com/' . self::GITHUB_REPO . '/releases',
+				'error'        => 'No tags found on GitHub.',
+			);
+		}
+
+		$tag_name = (string) $tags[0]['name'];
+
+		return array(
+			'version'      => self::normalize_version( $tag_name ),
+			'download_url' => 'https://github.com/' . self::GITHUB_REPO . '/archive/refs/tags/' . rawurlencode( $tag_name ) . '.zip',
+			'html_url'     => 'https://github.com/' . self::GITHUB_REPO . '/releases/tag/' . rawurlencode( $tag_name ),
+			'name'         => $tag_name,
+			'body'         => '',
+			'published_at' => '',
+		);
+	}
+
+	public static function fetch_latest_release( $force = false ) {
+		if ( ! $force ) {
+			$cached = get_transient( self::CACHE_KEY );
+
+			if ( is_array( $cached ) && ! empty( $cached['version'] ) ) {
+				return $cached;
+			}
+		}
+
+		$response = self::github_get( 'https://api.github.com/repos/' . self::GITHUB_REPO . '/releases/latest' );
+
+		if ( is_wp_error( $response ) ) {
+			return self::fetch_latest_tag();
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+
+		if ( 404 === $code ) {
+			$release = self::fetch_latest_tag();
+			set_transient( self::CACHE_KEY, $release, self::CACHE_TTL );
+			return $release;
+		}
 
 		if ( 200 !== $code ) {
 			return array(
@@ -105,7 +156,7 @@ class ADCT_Updater {
 		);
 
 		if ( $has && ADCT_Settings::user_can_manage() ) {
-			$plugin_file       = self::get_plugin_basename();
+			$plugin_file        = self::get_plugin_basename();
 			$info['update_url'] = wp_nonce_url(
 				self_admin_url( 'update.php?action=upgrade-plugin&plugin=' . rawurlencode( $plugin_file ) ),
 				'upgrade-plugin_' . $plugin_file
@@ -129,16 +180,16 @@ class ADCT_Updater {
 		$plugin_file = self::get_plugin_basename();
 
 		$transient->response[ $plugin_file ] = (object) array(
-			'slug'        => 'tracking-template',
-			'plugin'      => $plugin_file,
-			'new_version' => $info['latest'],
-			'url'         => $info['release_url'],
-			'package'     => $info['download_url'],
-			'icons'       => array(),
-			'banners'     => array(),
-			'banners_rtl' => array(),
-			'tested'      => get_bloginfo( 'version' ),
-			'requires_php'=> '7.4',
+			'slug'         => 'tracking-template',
+			'plugin'       => $plugin_file,
+			'new_version'  => $info['latest'],
+			'url'          => $info['release_url'],
+			'package'      => $info['download_url'],
+			'icons'        => array(),
+			'banners'      => array(),
+			'banners_rtl'  => array(),
+			'tested'       => get_bloginfo( 'version' ),
+			'requires_php' => '7.4',
 		);
 
 		return $transient;
@@ -156,16 +207,16 @@ class ADCT_Updater {
 		$info    = self::get_version_info( true );
 		$release = self::fetch_latest_release();
 
-		$result                = new stdClass();
-		$result->name          = 'Tracking Template';
-		$result->slug          = 'tracking-template';
-		$result->version       = $info['latest'];
-		$result->author        = '<a href="https://github.com/benjamindimalanta">Benjamin Clar</a>';
-		$result->homepage      = 'https://github.com/' . self::GITHUB_REPO;
-		$result->requires      = '5.8';
-		$result->requires_php  = '7.4';
+		$result               = new stdClass();
+		$result->name         = 'Tracking Template';
+		$result->slug         = 'tracking-template';
+		$result->version      = $info['latest'];
+		$result->author       = '<a href="https://github.com/benjamindimalanta">Benjamin Clar</a>';
+		$result->homepage     = 'https://github.com/' . self::GITHUB_REPO;
+		$result->requires     = '5.8';
+		$result->requires_php = '7.4';
 		$result->download_link = $info['download_url'];
-		$result->sections      = array(
+		$result->sections     = array(
 			'description' => 'WordPress contact-click tracking with marketing attribution and session reporting.',
 			'changelog'   => ! empty( $release['body'] ) ? wp_kses_post( wpautop( $release['body'] ) ) : '',
 		);
@@ -174,7 +225,7 @@ class ADCT_Updater {
 	}
 
 	public static function fix_source_directory( $source, $remote_source, $upgrader, $hook_extra ) {
-		if ( empty( $hook_extra['plugin'] ) || ADCT_Updater::get_plugin_basename() !== $hook_extra['plugin'] ) {
+		if ( empty( $hook_extra['plugin'] ) || self::get_plugin_basename() !== $hook_extra['plugin'] ) {
 			return $source;
 		}
 

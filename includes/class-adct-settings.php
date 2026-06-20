@@ -12,6 +12,7 @@ class ADCT_Settings {
 
 	public static function init() {
 		add_action( 'init', array( __CLASS__, 'sync_capabilities' ), 20 );
+		add_action( 'admin_init', array( __CLASS__, 'prune_inactive_allowed_roles' ) );
 	}
 
 	public static function user_can_view() {
@@ -33,19 +34,40 @@ class ADCT_Settings {
 	}
 
 	public static function get_available_roles() {
+		if ( ! function_exists( 'count_users' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+		}
+
 		if ( ! function_exists( 'get_editable_roles' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/user.php';
 		}
 
-		$roles     = get_editable_roles();
-		$available = array();
+		$user_counts = count_users();
+		$active      = isset( $user_counts['avail_roles'] ) ? $user_counts['avail_roles'] : array();
+		$editable    = get_editable_roles();
+		$available   = array();
 
-		foreach ( $roles as $slug => $details ) {
-			if ( 'administrator' === $slug ) {
+		foreach ( $active as $slug => $user_count ) {
+			$user_count = (int) $user_count;
+
+			if ( 'administrator' === $slug || $user_count < 1 ) {
 				continue;
 			}
 
-			$available[ $slug ] = translate_user_role( $details['name'] );
+			if ( ! isset( $editable[ $slug ] ) ) {
+				continue;
+			}
+
+			$label = translate_user_role( $editable[ $slug ]['name'] );
+			$available[ $slug ] = sprintf(
+				'%s (%s)',
+				$label,
+				sprintf(
+					/* translators: %s: number of users with this role */
+					_n( '%s user', '%s users', $user_count, 'tracking-template' ),
+					number_format_i18n( $user_count )
+				)
+			);
 		}
 
 		return $available;
@@ -65,6 +87,16 @@ class ADCT_Settings {
 
 		update_option( self::OPTION_ALLOWED_ROLES, $allowed );
 		self::sync_capabilities();
+	}
+
+	public static function prune_inactive_allowed_roles() {
+		$active  = array_keys( self::get_available_roles() );
+		$allowed = self::get_allowed_roles();
+		$pruned  = array_values( array_intersect( $allowed, $active ) );
+
+		if ( $pruned !== $allowed ) {
+			update_option( self::OPTION_ALLOWED_ROLES, $pruned );
+		}
 	}
 
 	public static function sync_capabilities() {

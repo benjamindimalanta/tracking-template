@@ -94,6 +94,12 @@ tracking-template/
 
 ## Changelog
 
+### 1.2.1
+
+- Access control lists only roles that currently have users (e.g. Shop manager), not every WordPress role
+- Full-width responsive page header spanning main content and sidebar
+- GitHub update check falls back to tags when no Release is published
+
 ### 1.2.0
 
 - Role-based access control — grant view access to available WordPress roles (Administrator always has access)

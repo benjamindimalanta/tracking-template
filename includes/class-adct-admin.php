@@ -25,7 +25,10 @@ class ADCT_Admin {
 		?>
 		<style>
 			.adct-wrap { max-width: none; }
-			.adct-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 320px); gap: 24px; align-items: start; margin-top: 8px; }
+			.adct-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 320px); gap: 24px; align-items: start; }
+			.adct-layout-header { grid-column: 1 / -1; margin-bottom: 4px; }
+			.adct-layout-header h1 { margin: 0 0 10px; padding: 0; font-size: 23px; font-weight: 600; line-height: 1.3; }
+			.adct-page-intro { color: #50575e; font-size: 14px; line-height: 1.65; margin: 0; max-width: none; }
 			.adct-main { min-width: 0; }
 			.adct-sidebar { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 40px; }
 			.adct-side-panel { background: #fff; border: 1px solid #e2e5ea; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.04); }
@@ -106,7 +109,6 @@ class ADCT_Admin {
 			.adct-stat-card:nth-child(4) { background: linear-gradient(135deg, #2e6b4a 0%, #34a853 100%); box-shadow: 0 4px 14px rgba(46,107,74,.2); }
 			.adct-stat-card strong { display: block; font-size: 26px; line-height: 1.1; color: #fff; font-weight: 700; word-break: break-word; }
 			.adct-stat-card span { color: rgba(255,255,255,.78); font-size: 11px; margin-top: 6px; display: block; line-height: 1.35; }
-			.adct-page-intro { max-width: 720px; color: #50575e; font-size: 14px; line-height: 1.6; margin: 8px 0 20px; }
 			.adct-table-toolbar { margin: 12px 0 16px; color: #646970; font-size: 13px; }
 			.adct-pagination { margin: 20px 0 0; }
 			.adct-pagination .page-numbers { margin-right: 4px; }
@@ -799,9 +801,9 @@ class ADCT_Admin {
 					<?php if ( $access_saved ) : ?>
 						<div class="adct-notice-inline">Access settings saved.</div>
 					<?php endif; ?>
-					<p class="adct-access-note">Administrators always have access. Choose which other roles can view Tracking Template.</p>
+					<p class="adct-access-note">Administrators always have access. Only roles that currently have users on this site are listed below.</p>
 					<?php if ( empty( $available_roles ) ) : ?>
-						<p class="adct-access-note">No additional roles are available on this site.</p>
+						<p class="adct-access-note">No other active roles right now. When you add users (e.g. Shop manager), they will appear here.</p>
 					<?php else : ?>
 						<form method="post" action="">
 							<?php wp_nonce_field( 'adct_save_access' ); ?>
@@ -1068,10 +1070,12 @@ class ADCT_Admin {
 		}
 		?>
 		<div class="wrap adct-wrap">
-			<h1>Tracking Template</h1>
-			<p class="adct-page-intro">Tracks contact clicks with marketing attribution, groups them by visitor session, and reports everything in one admin dashboard. Expand any session to see every click, full landing URL, campaign, and page detail. Data refreshes each time you open or reload this page.</p>
-
 			<div class="adct-layout">
+				<header class="adct-layout-header">
+					<h1>Tracking Template</h1>
+					<p class="adct-page-intro">Tracks contact clicks with marketing attribution, groups them by visitor session, and reports everything in one admin dashboard. Expand any session to see every click, full landing URL, campaign, and page detail. Data refreshes each time you open or reload this page.</p>
+				</header>
+
 				<div class="adct-main">
 			<div class="adct-stats-bar">
 				<div class="adct-stat-card">
