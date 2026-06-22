@@ -79,22 +79,22 @@ class ADCT_Leads {
 		$contact_type = sanitize_key( (string) $contact_type );
 
 		if ( in_array( $contact_type, self::WHATSAPP_TYPES, true ) ) {
-			return 'WhatsApp lead';
+			return 'WhatsApp click';
 		}
 
 		if ( in_array( $contact_type, self::PHONE_TYPES, true ) ) {
 			if ( 'elfsight_call' === $contact_type ) {
-				return 'Widget call lead';
+				return 'Widget call click';
 			}
 
 			if ( 'showroom_landline' === $contact_type || 'footer_landline' === $contact_type ) {
-				return 'Showroom lead';
+				return 'Showroom click';
 			}
 
-			return 'Phone lead';
+			return 'Phone click';
 		}
 
-		return ADCT_Admin::format_contact_type_label( $contact_type ) . ' lead';
+		return ADCT_Admin::format_contact_type_label( $contact_type ) . ' click';
 	}
 
 	public static function is_salesman_attributed_click( $contact_type, $agent_name = '' ) {

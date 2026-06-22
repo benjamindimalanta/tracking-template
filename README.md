@@ -96,6 +96,12 @@ tracking-template/
 
 ## Changelog
 
+### 1.5.0
+
+- Rename lead status labels to **contact click intents** (WhatsApp click, Phone click, Widget call click)
+- Leads page and sidebar explain that counts are intents, not confirmed messages or calls
+- Note added that a **Likely engaged** filter is planned for a future update
+
 ### 1.4.5
 
 - Leads **Date** column shows day and time on separate lines for easier scanning

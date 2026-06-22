@@ -314,6 +314,8 @@ class ADCT_Admin {
 			.adct-session-popover-foot a:hover { text-decoration: underline; }
 			.adct-session-focus-banner { margin: 0 0 16px; padding: 12px 14px; border-radius: 12px; border: 1px solid #c9daf8; background: #eef4fd; color: #1a4b91; font-size: 13px; }
 			.adct-session-focus-banner a { color: #135e96; font-weight: 600; }
+			.adct-intent-note { margin: 0 0 16px; padding: 12px 14px; border-radius: 12px; border: 1px solid #e8eaed; background: #f8f9fb; color: #50575e; font-size: 12px; line-height: 1.5; }
+			.adct-intent-note strong { color: #1a2332; }
 			@media screen and (max-width: 960px) {
 				.adct-summary-grid { grid-template-columns: 1fr; }
 				.adct-chart-shell { max-width: 240px; }
@@ -1084,6 +1086,7 @@ class ADCT_Admin {
 					<li>Google Ads UTMs &amp; full landing URL</li>
 					<li>One session card per browser tab</li>
 				</ul>
+				<p class="adct-access-note" style="margin-top:10px;">Counts are contact click intents unless marked engaged in a future update. A click does not confirm a message was sent or a call was completed.</p>
 			</div>
 
 			<div class="adct-side-panel">
@@ -1360,8 +1363,8 @@ class ADCT_Admin {
 
 								<div class="adct-recent-leads">
 									<div class="adct-recent-leads-head">
-										<h3>Recent leads</h3>
-										<a href="<?php echo esc_url( $leads_url ); ?>">View all leads</a>
+										<h3>Recent contact intents</h3>
+										<a href="<?php echo esc_url( $leads_url ); ?>">View all intents</a>
 									</div>
 									<?php if ( ! empty( $overview['recent_leads'] ) ) : ?>
 										<ul class="adct-recent-leads-list">
@@ -1396,7 +1399,7 @@ class ADCT_Admin {
 											<?php endforeach; ?>
 										</ul>
 									<?php else : ?>
-										<p class="adct-insight-empty">No leads in this period yet.</p>
+										<p class="adct-insight-empty">No contact intents in this period yet.</p>
 									<?php endif; ?>
 								</div>
 							<?php else : ?>
@@ -1498,7 +1501,7 @@ class ADCT_Admin {
 						<span style="width: <?php echo esc_attr( min( 100, max( 0, (float) $item['percent_raw'] ) ) ); ?>%; background: <?php echo esc_attr( $item['color'] ); ?>;"></span>
 					</div>
 					<?php if ( ! empty( $item['filter_url'] ) && 'referrers' !== $item['key'] ) : ?>
-						<a class="adct-traffic-link" href="<?php echo esc_url( $item['filter_url'] ); ?>">View leads →</a>
+						<a class="adct-traffic-link" href="<?php echo esc_url( $item['filter_url'] ); ?>">View intents →</a>
 					<?php endif; ?>
 				</div>
 			<?php endforeach; ?>
@@ -1601,7 +1604,7 @@ class ADCT_Admin {
 			<div class="adct-layout">
 				<header class="adct-layout-header">
 					<h1>Leads</h1>
-					<p class="adct-page-intro">Every contact click listed as a lead — WhatsApp, phone, showroom, and widget calls. Filter by channel, campaign, or source, or open Sessions for the full visitor journey.</p>
+					<p class="adct-page-intro">Every contact button click listed here as a contact intent — WhatsApp, phone, showroom, and widget calls. These are clicks to enquire, not confirmed messages or completed calls. Filter by channel, campaign, or source, or open Sessions for the full visitor journey.</p>
 				</header>
 
 				<div class="adct-main">
@@ -1618,6 +1621,12 @@ class ADCT_Admin {
 							<span>WhatsApp</span>
 							<span class="adct-leads-tab-count"><?php echo esc_html( number_format_i18n( $channel_counts['whatsapp'] ) ); ?></span>
 						</a>
+					</div>
+
+					<div class="adct-intent-note">
+						<strong>Contact click intents.</strong>
+						Counts here are button clicks only — someone tapped WhatsApp or phone. That does not confirm a message was sent or a call was completed.
+						A <strong>Likely engaged</strong> filter is planned for a future update to separate stronger signals from quick bounces.
 					</div>
 
 					<form method="get" class="adct-filters">
@@ -1695,15 +1704,15 @@ class ADCT_Admin {
 						<p>
 							<?php if ( $list_total ) : ?>
 								Showing <?php echo esc_html( number_format_i18n( $from_item ) ); ?>–<?php echo esc_html( number_format_i18n( $to_item ) ); ?>
-								of <?php echo esc_html( number_format_i18n( $list_total ) ); ?> leads.
+								of <?php echo esc_html( number_format_i18n( $list_total ) ); ?> contact intents.
 							<?php else : ?>
-								No leads to display for the current filters.
+								No contact intents to display for the current filters.
 							<?php endif; ?>
 						</p>
 					</div>
 
 					<?php if ( empty( $lead_rows ) ) : ?>
-						<div class="adct-empty">No contact leads recorded yet. When visitors click WhatsApp, phone, or other contact buttons, each click will appear here.</div>
+						<div class="adct-empty">No contact intents recorded yet. When visitors click WhatsApp, phone, or other contact buttons, each click will appear here.</div>
 					<?php else : ?>
 						<div class="adct-leads-table-wrap">
 							<table class="adct-leads-table">
@@ -1850,7 +1859,7 @@ class ADCT_Admin {
 				<dl>
 					<?php if ( $position_txt ) : ?>
 						<div>
-							<dt><?php esc_html_e( 'This lead', 'tracking-template' ); ?></dt>
+							<dt><?php esc_html_e( 'This click', 'tracking-template' ); ?></dt>
 							<dd><?php echo esc_html( $position_txt . ' in this visit' ); ?></dd>
 						</div>
 					<?php endif; ?>
