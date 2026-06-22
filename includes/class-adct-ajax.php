@@ -31,6 +31,10 @@ class ADCT_Ajax {
 	public static function log_click() {
 		check_ajax_referer( 'adct_log_click', 'nonce' );
 
+		if ( ! ADCT_License::is_active() ) {
+			wp_send_json_error( array( 'message' => 'Tracking is inactive. License required.' ), 403 );
+		}
+
 		$product_id   = isset( $_POST['product_id'] ) ? absint( wp_unslash( $_POST['product_id'] ) ) : 0;
 		$contact_type = isset( $_POST['contact_type'] ) ? sanitize_key( wp_unslash( $_POST['contact_type'] ) ) : '';
 

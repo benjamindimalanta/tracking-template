@@ -16,7 +16,7 @@ class ADCT_Admin {
 
 	public static function is_admin_page( $page = '' ) {
 		$current = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
-		$pages   = array( 'tracking-template', 'tracking-template-sessions', 'tracking-template-leads' );
+		$pages   = array( 'tracking-template', 'tracking-template-sessions', 'tracking-template-leads', 'tracking-template-license' );
 
 		if ( $page ) {
 			return $current === $page;
@@ -118,6 +118,27 @@ class ADCT_Admin {
 			.adct-setup-steps { margin: 0; padding: 0 0 0 18px; font-size: 12px; color: #3c434a; line-height: 1.55; }
 			.adct-setup-steps li { margin-bottom: 8px; }
 			.adct-setup-steps li:last-child { margin-bottom: 0; }
+			.adct-license-locked { position: relative; min-height: 420px; }
+			.adct-license-locked-content { filter: blur(5px); opacity: .45; pointer-events: none; user-select: none; }
+			.adct-license-glass { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 20; }
+			.adct-license-card { width: min(100%, 460px); background: rgba(255,255,255,.94); border: 1px solid #dce1e8; border-radius: 16px; padding: 28px 30px; box-shadow: 0 18px 48px rgba(26,35,50,.18); text-align: center; backdrop-filter: blur(8px); }
+			.adct-license-card h2 { margin: 0 0 10px; font-size: 22px; color: #1a2332; }
+			.adct-license-card p { margin: 0 0 16px; color: #50575e; font-size: 14px; line-height: 1.6; }
+			.adct-license-card .adct-license-key-field { width: 100%; margin: 0 0 12px; text-align: center; font-family: Consolas, Monaco, monospace; letter-spacing: .04em; }
+			.adct-license-card .button-primary { min-width: 160px; }
+			.adct-license-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0 0; text-align: left; }
+			.adct-license-meta-item { background: #f6f8fa; border: 1px solid #eceff3; border-radius: 10px; padding: 12px; }
+			.adct-license-meta-item span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #8c8f94; font-weight: 600; }
+			.adct-license-meta-item strong { display: block; margin-top: 4px; font-size: 13px; color: #1a2332; word-break: break-word; }
+			.adct-license-status-badge { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 5px 10px; border-radius: 999px; margin-bottom: 12px; }
+			.adct-license-status-badge.is-active { background: #e6f4ea; color: #1e7e34; }
+			.adct-license-status-badge.is-warn { background: #fef7e0; color: #9a6700; }
+			.adct-license-status-badge.is-error { background: #fce8e6; color: #c5221f; }
+			.adct-license-page .adct-license-panel { max-width: 640px; }
+			.adct-license-activated { margin-bottom: 18px; }
+			.adct-license-activated-key { display: inline-block; font-family: Consolas, Monaco, monospace; font-size: 15px; letter-spacing: .04em; padding: 8px 12px; background: #f0f6fc; border: 1px solid #dce1e8; border-radius: 8px; color: #1a2332; }
+			.adct-license-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+			.adct-license-change-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid #eceff3; }
 			@media screen and (max-width: 1280px) {
 				.adct-layout { grid-template-columns: 1fr; }
 				.adct-sidebar { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
@@ -1105,6 +1126,10 @@ class ADCT_Admin {
 				<h3>System status</h3>
 				<ul class="adct-status-list">
 					<li>
+						<span class="adct-status-dot <?php echo ADCT_License::is_active() ? 'is-ok' : 'is-warn'; ?>"></span>
+						License <?php echo ADCT_License::is_active() ? 'active' : 'inactive'; ?>
+					</li>
+					<li>
 						<span class="adct-status-dot is-ok"></span>
 						Database v<?php echo esc_html( ADCT_Database::DB_VERSION ); ?>
 					</li>
@@ -1165,6 +1190,158 @@ class ADCT_Admin {
 			'tracking-template-sessions',
 			array( __CLASS__, 'render_reports_page' )
 		);
+
+		add_submenu_page(
+			'tracking-template',
+			'License',
+			'License',
+			'manage_options',
+			'tracking-template-license',
+			array( __CLASS__, 'render_license_page' )
+		);
+	}
+
+	public static function render_locked_page() {
+		$can_manage  = ADCT_Settings::user_can_manage();
+		$summary     = ADCT_License::get_status_summary();
+		$license_url = admin_url( 'admin.php?page=tracking-template-license' );
+		$page        = self::get_page_context();
+		?>
+		<div class="wrap adct-wrap">
+			<div class="adct-layout">
+				<div class="adct-layout-header">
+					<h1>Tracking Template</h1>
+					<p class="adct-page-intro">Reporting is locked until a valid license is active.</p>
+				</div>
+				<div class="adct-main adct-license-locked">
+					<div class="adct-license-locked-content" aria-hidden="true">
+						<div class="adct-panel" style="min-height:280px;background:linear-gradient(135deg,#f6f8fa,#eceff3);border-radius:12px;border:1px solid #dce1e8;"></div>
+					</div>
+					<div class="adct-license-glass">
+						<div class="adct-license-card">
+							<span class="adct-license-status-badge is-error"><?php echo esc_html( $summary['label'] ); ?></span>
+							<h2>License required</h2>
+							<?php if ( $can_manage ) : ?>
+								<p><?php echo esc_html( $summary['message'] ?: 'Enter your license key to unlock tracking and reporting.' ); ?></p>
+								<a class="button button-primary" href="<?php echo esc_url( $license_url ); ?>">Activate license</a>
+							<?php else : ?>
+								<p>Contact a site administrator to activate the Tracking Template license.</p>
+							<?php endif; ?>
+						</div>
+					</div>
+				</div>
+				<?php self::render_sidebar( $page['snapshot'], '#', false, $page['version_info'] ); ?>
+			</div>
+		</div>
+		<?php
+	}
+
+	public static function render_license_page() {
+		if ( ! ADCT_Settings::user_can_manage() ) {
+			return;
+		}
+
+		$summary     = ADCT_License::get_status_summary();
+		$saved_key   = ADCT_License::get_key();
+		$site_host   = ADCT_License::get_site_host();
+		$checked_at  = get_option( ADCT_License::OPTION_CHECKED_AT, '' );
+		$last_valid  = get_option( ADCT_License::OPTION_LAST_VALID_AT, '' );
+		$is_active   = ! empty( $summary['active'] ) && 'active' === $summary['status'];
+		$show_form   = ! $is_active || ! empty( $_GET['adct_change_license'] );
+		$badge_class = ! empty( $summary['active'] ) ? 'is-active' : ( in_array( $summary['status'], array( 'grace_install', 'grace_remote' ), true ) ? 'is-warn' : 'is-error' );
+		?>
+		<div class="wrap adct-wrap adct-license-page">
+			<div class="adct-layout">
+				<div class="adct-layout-header">
+					<h1>License</h1>
+					<p class="adct-page-intro">Activate Tracking Template with your license key. Tracking and reporting stay off when the license is inactive or revoked.</p>
+				</div>
+				<div class="adct-main">
+					<div class="adct-panel adct-license-panel">
+						<span class="adct-license-status-badge <?php echo esc_attr( $badge_class ); ?>"><?php echo esc_html( $summary['label'] ); ?></span>
+
+						<?php if ( $is_active && ! $show_form ) : ?>
+							<div class="adct-license-activated">
+								<p style="margin:0 0 8px;"><strong>License activated</strong></p>
+								<span class="adct-license-activated-key"><?php echo esc_html( ADCT_License::mask_key( $saved_key ) ); ?></span>
+								<p class="description" style="margin:10px 0 0;">Licensed to this site: <code><?php echo esc_html( $site_host ); ?></code></p>
+								<div class="adct-license-actions">
+									<a class="button" href="<?php echo esc_url( add_query_arg( 'adct_change_license', '1' ) ); ?>">Change license key</a>
+									<form method="post" action="" style="display:inline;">
+										<?php wp_nonce_field( 'adct_deactivate_license' ); ?>
+										<input type="hidden" name="adct_deactivate_license" value="1" />
+										<?php submit_button( 'Deactivate', 'delete', 'submit', false, array( 'onclick' => "return confirm('Deactivate license on this site? Tracking will stop.');" ) ); ?>
+									</form>
+								</div>
+							</div>
+						<?php endif; ?>
+
+						<?php if ( $show_form ) : ?>
+							<?php if ( $is_active ) : ?>
+								<p style="margin:0 0 12px;"><a href="<?php echo esc_url( remove_query_arg( 'adct_change_license' ) ); ?>">&larr; Back</a></p>
+							<?php endif; ?>
+							<form method="post" action="" class="<?php echo $is_active ? 'adct-license-change-form' : ''; ?>">
+								<?php wp_nonce_field( 'adct_activate_license' ); ?>
+								<input type="hidden" name="adct_activate_license" value="1" />
+								<p>
+									<label for="adct-license-key"><strong><?php echo $is_active ? 'New license key' : 'License key'; ?></strong></label>
+								</p>
+								<p>
+									<input
+										type="text"
+										class="regular-text adct-license-key-field"
+										id="adct-license-key"
+										name="adct_license_key"
+										value=""
+										placeholder="ADCT-XXXX-XXXX-XXXX"
+										autocomplete="off"
+									/>
+								</p>
+								<p class="description">Licensed to this site: <code><?php echo esc_html( $site_host ); ?></code></p>
+								<?php submit_button( $is_active ? 'Update license' : 'Activate license', 'primary', 'submit', false ); ?>
+							</form>
+						<?php endif; ?>
+
+						<div class="adct-license-meta">
+							<div class="adct-license-meta-item">
+								<span>Status</span>
+								<strong><?php echo esc_html( $summary['label'] ); ?></strong>
+							</div>
+							<div class="adct-license-meta-item">
+								<span>Plan</span>
+								<strong><?php echo esc_html( $summary['plan'] ? ucfirst( $summary['plan'] ) : '—' ); ?></strong>
+							</div>
+							<div class="adct-license-meta-item">
+								<span>Expires</span>
+								<strong><?php echo esc_html( $summary['expires'] ?: '—' ); ?></strong>
+							</div>
+							<div class="adct-license-meta-item">
+								<span>Last checked</span>
+								<strong><?php echo esc_html( $checked_at ? self::format_relative_time( $checked_at ) : '—' ); ?></strong>
+							</div>
+							<div class="adct-license-meta-item">
+								<span>Last valid</span>
+								<strong><?php echo esc_html( $last_valid ? self::format_relative_time( $last_valid ) : '—' ); ?></strong>
+							</div>
+							<div class="adct-license-meta-item">
+								<span>Tracking</span>
+								<strong><?php echo ADCT_License::is_active() ? 'Active' : 'Stopped'; ?></strong>
+							</div>
+						</div>
+						<?php if ( ! empty( $summary['message'] ) && ( ! $is_active || $show_form ) ) : ?>
+							<p class="adct-access-note" style="margin-top:16px;"><?php echo esc_html( $summary['message'] ); ?></p>
+						<?php elseif ( $is_active && ! $show_form ) : ?>
+							<p class="adct-access-note" style="margin-top:16px;">License is active. Tracking validates daily against the license server.</p>
+						<?php endif; ?>
+						<p class="adct-access-note" style="margin-top:16px;">
+							Need a license? <a href="<?php echo esc_url( ADCT_License::PURCHASE_URL ); ?>" target="_blank" rel="noopener noreferrer">Contact Benjamin Clar</a>.
+							Developers can set <code>ADCT_LICENSE_BYPASS</code> in <code>wp-config.php</code> for local testing.
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
+		<?php
 	}
 
 	private static function get_page_context() {
@@ -1187,6 +1364,11 @@ class ADCT_Admin {
 
 	public static function render_overview_page() {
 		if ( ! ADCT_Settings::user_can_view() ) {
+			return;
+		}
+
+		if ( ! ADCT_License::is_active() ) {
+			self::render_locked_page();
 			return;
 		}
 
@@ -1539,6 +1721,11 @@ class ADCT_Admin {
 
 	public static function render_leads_page() {
 		if ( ! ADCT_Settings::user_can_view() ) {
+			return;
+		}
+
+		if ( ! ADCT_License::is_active() ) {
+			self::render_locked_page();
 			return;
 		}
 
@@ -1899,7 +2086,7 @@ class ADCT_Admin {
 	}
 
 	public static function maybe_export_csv() {
-		if ( ! is_admin() || ! ADCT_Settings::user_can_view() ) {
+		if ( ! is_admin() || ! ADCT_Settings::user_can_view() || ! ADCT_License::is_active() ) {
 			return;
 		}
 
@@ -1997,6 +2184,11 @@ class ADCT_Admin {
 
 	public static function render_reports_page() {
 		if ( ! ADCT_Settings::user_can_view() ) {
+			return;
+		}
+
+		if ( ! ADCT_License::is_active() ) {
+			self::render_locked_page();
 			return;
 		}
 

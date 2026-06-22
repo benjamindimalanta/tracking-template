@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "licenses": {
+    "ADCT-DEMO-AAAA-BBBB": {
+      "active": true,
+      "expires": "2027-12-31",
+      "plan": "agency",
+      "sites": [
+        "autodealsuae.com",
+        "localhost"
+      ],
+      "note": "Example only — replace with real keys per customer"
+    }
+  },
+  "revoked_keys": [],
+  "revoked_sites": []
+}

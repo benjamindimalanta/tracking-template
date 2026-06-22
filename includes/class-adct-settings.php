@@ -14,6 +14,7 @@ class ADCT_Settings {
 		'tracking-template',
 		'tracking-template-sessions',
 		'tracking-template-leads',
+		'tracking-template-license',
 	);
 
 	public static function init() {

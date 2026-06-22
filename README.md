@@ -17,6 +17,7 @@ A reusable WordPress plugin for contact-click tracking, marketing attribution, a
 - **WooCommerce ready** — Product snapshot (title, price, mileage, image) on product pages
 - **Site-wide tracking** — Landing pages, brand archives, and product pages
 - **Admin dashboard** — Filters, pagination, CSV export
+- **License control** — Remote license key validation with soft kill (tracking off when inactive)
 - **WP Rocket compatible** — Script exclusions for cache/minify/defer
 
 ---
@@ -74,6 +75,55 @@ After activation, open **Tracking Template** in the WordPress admin sidebar.
 - Sessions are grouped by browser tab (`session_id` in sessionStorage)
 - Expand a session to see marketing data and every click in chronological order
 - **Export CSV** downloads all individual click rows (not grouped)
+- **License** — Administrators activate under **Tracking Template → License**
+
+---
+
+## License (author control)
+
+Tracking Template validates license keys against your **License Hub** API (Supabase + Vercel):
+
+`https://plugin.cubescenter.org/api/licenses.json`
+
+### Setup (plugin author)
+
+1. Deploy **adct-license-hub** (see `adct-license-hub` repo) with Supabase
+2. Run `supabase/schema.sql` in your Supabase project
+3. Generate keys in the dashboard at https://plugin.cubescenter.org
+4. Customer enters the key under **Tracking Template → License**
+
+### Revoke access
+
+Use the License Hub dashboard — **Revoke** or deactivate a key. No GitHub or file edits required.
+
+### When license is inactive (soft kill)
+
+| Area | Behaviour |
+|---|---|
+| **Website visitors** | No tracking scripts — no new clicks recorded |
+| **AJAX endpoint** | Blocked |
+| **Overview / Leads / Sessions** | Glass lock screen — link to License page |
+| **License page** | Always available to administrators |
+| **WooCommerce / rest of site** | Unaffected |
+
+### Grace periods
+
+- **14 days** after first install to enter a key (tracking works, admin warning shown)
+- **7 days** if license server unreachable but key was previously valid
+
+### Local development
+
+Add to `wp-config.php`:
+
+```php
+define( 'ADCT_LICENSE_BYPASS', true );
+```
+
+Optional custom license URL:
+
+```php
+define( 'ADCT_LICENSE_API_URL', 'https://plugin.cubescenter.org/api/licenses.json' );
+```
 
 ---
 
@@ -95,6 +145,13 @@ tracking-template/
 ---
 
 ## Changelog
+
+### 1.6.0
+
+- **License system** — key activation, remote validation via License Hub API (`plugin.cubescenter.org`), soft kill when inactive
+- **License admin page** — activate key, masked key when active, change/deactivate, plan, expiry, last checked
+- **Locked reporting UI** — glass overlay on Overview/Leads/Sessions when license inactive
+- 14-day activation grace on first install; 7-day grace if license server unreachable
 
 ### 1.5.0
 
