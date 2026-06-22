@@ -6,9 +6,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class ADCT_Updater {
 
-	const GITHUB_REPO = 'benjamindimalanta/tracking-template';
+	const DEFAULT_UPDATE_URL = 'https://plugin.cubescenter.org/api/update.json';
 
-	const CACHE_KEY = 'adct_github_release';
+	const CACHE_KEY = 'adct_plugin_update';
 
 	const CACHE_TTL = 43200;
 
@@ -22,66 +22,30 @@ class ADCT_Updater {
 		return plugin_basename( ADCT_PLUGIN_FILE );
 	}
 
+	public static function get_update_api_url() {
+		$url = self::DEFAULT_UPDATE_URL;
+
+		if ( defined( 'ADCT_UPDATE_API_URL' ) && ADCT_UPDATE_API_URL ) {
+			$url = ADCT_UPDATE_API_URL;
+		}
+
+		return apply_filters( 'adct_update_api_url', $url );
+	}
+
 	public static function normalize_version( $version ) {
 		return ltrim( (string) $version, 'vV' );
 	}
 
-	private static function github_get( $url ) {
+	private static function hub_get( $url ) {
 		return wp_remote_get(
 			$url,
 			array(
 				'timeout' => 15,
 				'headers' => array(
-					'Accept'     => 'application/vnd.github+json',
+					'Accept'     => 'application/json',
 					'User-Agent' => 'Tracking-Template-WordPress-Plugin',
 				),
 			)
-		);
-	}
-
-	private static function fetch_latest_tag() {
-		$response = self::github_get( 'https://api.github.com/repos/' . self::GITHUB_REPO . '/tags' );
-
-		if ( is_wp_error( $response ) ) {
-			return array(
-				'version'      => ADCT_VERSION,
-				'download_url' => '',
-				'html_url'     => 'https://github.com/' . self::GITHUB_REPO . '/releases',
-				'error'        => $response->get_error_message(),
-			);
-		}
-
-		$code = (int) wp_remote_retrieve_response_code( $response );
-
-		if ( 200 !== $code ) {
-			return array(
-				'version'      => ADCT_VERSION,
-				'download_url' => '',
-				'html_url'     => 'https://github.com/' . self::GITHUB_REPO . '/releases',
-				'error'        => 'GitHub API returned HTTP ' . $code,
-			);
-		}
-
-		$tags = json_decode( wp_remote_retrieve_body( $response ), true );
-
-		if ( empty( $tags[0]['name'] ) ) {
-			return array(
-				'version'      => ADCT_VERSION,
-				'download_url' => '',
-				'html_url'     => 'https://github.com/' . self::GITHUB_REPO . '/releases',
-				'error'        => 'No tags found on GitHub.',
-			);
-		}
-
-		$tag_name = (string) $tags[0]['name'];
-
-		return array(
-			'version'      => self::normalize_version( $tag_name ),
-			'download_url' => 'https://github.com/' . self::GITHUB_REPO . '/archive/refs/tags/' . rawurlencode( $tag_name ) . '.zip',
-			'html_url'     => 'https://github.com/' . self::GITHUB_REPO . '/releases/tag/' . rawurlencode( $tag_name ),
-			'name'         => $tag_name,
-			'body'         => '',
-			'published_at' => '',
 		);
 	}
 
@@ -94,44 +58,49 @@ class ADCT_Updater {
 			}
 		}
 
-		$response = self::github_get( 'https://api.github.com/repos/' . self::GITHUB_REPO . '/releases/latest' );
+		$response = self::hub_get( self::get_update_api_url() );
 
 		if ( is_wp_error( $response ) ) {
-			return self::fetch_latest_tag();
+			return array(
+				'version'      => ADCT_VERSION,
+				'download_url' => '',
+				'html_url'     => 'https://plugin.cubescenter.org',
+				'error'        => $response->get_error_message(),
+			);
 		}
 
 		$code = (int) wp_remote_retrieve_response_code( $response );
-
-		if ( 404 === $code ) {
-			$release = self::fetch_latest_tag();
-			set_transient( self::CACHE_KEY, $release, self::CACHE_TTL );
-			return $release;
-		}
 
 		if ( 200 !== $code ) {
 			return array(
 				'version'      => ADCT_VERSION,
 				'download_url' => '',
-				'html_url'     => 'https://github.com/' . self::GITHUB_REPO . '/releases',
-				'error'        => 'GitHub API returned HTTP ' . $code,
+				'html_url'     => 'https://plugin.cubescenter.org',
+				'error'        => 'Update server returned HTTP ' . $code,
 			);
 		}
 
-		$data    = json_decode( wp_remote_retrieve_body( $response ), true );
-		$tag     = isset( $data['tag_name'] ) ? self::normalize_version( $data['tag_name'] ) : ADCT_VERSION;
-		$zip_url = isset( $data['zipball_url'] ) ? $data['zipball_url'] : '';
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
 
-		if ( empty( $zip_url ) && ! empty( $data['tag_name'] ) ) {
-			$zip_url = 'https://github.com/' . self::GITHUB_REPO . '/archive/refs/tags/' . rawurlencode( $data['tag_name'] ) . '.zip';
+		if ( ! is_array( $data ) || empty( $data['version'] ) ) {
+			return array(
+				'version'      => ADCT_VERSION,
+				'download_url' => '',
+				'html_url'     => 'https://plugin.cubescenter.org',
+				'error'        => 'Update server returned invalid JSON.',
+			);
 		}
 
 		$release = array(
-			'version'      => $tag,
-			'download_url' => $zip_url,
-			'html_url'     => isset( $data['html_url'] ) ? $data['html_url'] : 'https://github.com/' . self::GITHUB_REPO . '/releases',
-			'name'         => isset( $data['name'] ) ? (string) $data['name'] : '',
-			'body'         => isset( $data['body'] ) ? (string) $data['body'] : '',
-			'published_at' => isset( $data['published_at'] ) ? (string) $data['published_at'] : '',
+			'version'      => self::normalize_version( $data['version'] ),
+			'download_url' => isset( $data['download_url'] ) ? (string) $data['download_url'] : '',
+			'html_url'     => isset( $data['homepage'] ) ? (string) $data['homepage'] : 'https://plugin.cubescenter.org',
+			'name'         => isset( $data['name'] ) ? (string) $data['name'] : 'Tracking Template',
+			'body'         => isset( $data['changelog'] ) ? (string) $data['changelog'] : '',
+			'published_at' => '',
+			'requires'     => isset( $data['requires'] ) ? (string) $data['requires'] : '5.8',
+			'requires_php' => isset( $data['requires_php'] ) ? (string) $data['requires_php'] : '7.4',
+			'tested'       => isset( $data['tested'] ) ? (string) $data['tested'] : '',
 		);
 
 		set_transient( self::CACHE_KEY, $release, self::CACHE_TTL );
@@ -150,7 +119,7 @@ class ADCT_Updater {
 			'latest'       => $latest,
 			'has_update'   => $has,
 			'download_url' => $release['download_url'] ?? '',
-			'release_url'  => $release['html_url'] ?? 'https://github.com/' . self::GITHUB_REPO . '/releases',
+			'release_url'  => $release['html_url'] ?? 'https://plugin.cubescenter.org',
 			'error'        => $release['error'] ?? '',
 			'up_to_date'   => ! $has,
 		);
@@ -178,6 +147,7 @@ class ADCT_Updater {
 		}
 
 		$plugin_file = self::get_plugin_basename();
+		$release     = self::fetch_latest_release();
 
 		$transient->response[ $plugin_file ] = (object) array(
 			'slug'         => 'tracking-template',
@@ -188,8 +158,8 @@ class ADCT_Updater {
 			'icons'        => array(),
 			'banners'      => array(),
 			'banners_rtl'  => array(),
-			'tested'       => get_bloginfo( 'version' ),
-			'requires_php' => '7.4',
+			'tested'       => ! empty( $release['tested'] ) ? $release['tested'] : get_bloginfo( 'version' ),
+			'requires_php' => $release['requires_php'] ?? '7.4',
 		);
 
 		return $transient;
@@ -207,16 +177,16 @@ class ADCT_Updater {
 		$info    = self::get_version_info( true );
 		$release = self::fetch_latest_release();
 
-		$result               = new stdClass();
-		$result->name         = 'Tracking Template';
-		$result->slug         = 'tracking-template';
-		$result->version      = $info['latest'];
-		$result->author       = '<a href="https://github.com/benjamindimalanta">Benjamin Clar</a>';
-		$result->homepage     = 'https://github.com/' . self::GITHUB_REPO;
-		$result->requires     = '5.8';
-		$result->requires_php = '7.4';
+		$result                = new stdClass();
+		$result->name          = 'Tracking Template';
+		$result->slug          = 'tracking-template';
+		$result->version       = $info['latest'];
+		$result->author        = '<a href="https://plugin.cubescenter.org">Benjamin Clar</a>';
+		$result->homepage      = $info['release_url'];
+		$result->requires      = $release['requires'] ?? '5.8';
+		$result->requires_php  = $release['requires_php'] ?? '7.4';
 		$result->download_link = $info['download_url'];
-		$result->sections     = array(
+		$result->sections      = array(
 			'description' => 'WordPress contact-click tracking with marketing attribution and session reporting.',
 			'changelog'   => ! empty( $release['body'] ) ? wp_kses_post( wpautop( $release['body'] ) ) : '',
 		);

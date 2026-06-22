@@ -407,7 +407,7 @@ class ADCT_License {
 			if ( 404 === $code ) {
 				return new WP_Error(
 					'adct_license_missing',
-					'License server not found. The author must publish licenses.json on GitHub first.'
+					'License server not found. Check plugin.cubescenter.org is reachable.'
 				);
 			}
 

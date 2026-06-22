@@ -52,7 +52,7 @@ class ADCT_Admin {
 
 	const UTM_TEMPLATE = 'utm_source=google&utm_medium=cpc&utm_campaign={campaignname}&utm_id={campaignid}&utm_term={keyword}&utm_content={creative}';
 
-	const GITHUB_REPO = 'https://github.com/benjamindimalanta/tracking-template';
+	const HUB_URL = 'https://plugin.cubescenter.org';
 
 	public static function admin_styles() {
 		if ( ! self::is_admin_page() ) {
@@ -1005,8 +1005,8 @@ class ADCT_Admin {
 					</div>
 				</div>
 				<div class="adct-side-links">
-					<a href="<?php echo esc_url( self::GITHUB_REPO ); ?>" target="_blank" rel="noopener noreferrer">GitHub</a>
-					<a href="<?php echo esc_url( self::GITHUB_REPO . '/releases' ); ?>" target="_blank" rel="noopener noreferrer">Changelog</a>
+					<a href="<?php echo esc_url( self::HUB_URL ); ?>" target="_blank" rel="noopener noreferrer">License Hub</a>
+					<a href="<?php echo esc_url( self::HUB_URL . '/api/update.json' ); ?>" target="_blank" rel="noopener noreferrer">Update API</a>
 				</div>
 				<p class="adct-author">Created by Benjamin Clar</p>
 			</div>
@@ -1016,7 +1016,7 @@ class ADCT_Admin {
 					<h3>Plugin update</h3>
 					<?php if ( ! empty( $version_info['has_update'] ) ) : ?>
 						<span class="adct-update-badge is-available">Update available</span>
-						<p class="adct-update-note">A new version is on GitHub. Update in one click — no zip download needed.</p>
+						<p class="adct-update-note">A new version is available on License Hub. Update in one click.</p>
 						<?php if ( ! empty( $version_info['update_url'] ) ) : ?>
 							<div class="adct-side-actions">
 								<a class="button button-primary" href="<?php echo esc_url( $version_info['update_url'] ); ?>">Update to v<?php echo esc_html( $version_info['latest'] ); ?></a>
@@ -1024,10 +1024,10 @@ class ADCT_Admin {
 						<?php endif; ?>
 					<?php else : ?>
 						<span class="adct-update-badge is-current">Up to date</span>
-						<p class="adct-update-note">You are running the latest release from GitHub.</p>
+						<p class="adct-update-note">You are running the latest release from License Hub.</p>
 					<?php endif; ?>
 					<?php if ( ! empty( $version_info['error'] ) ) : ?>
-						<p class="adct-update-note">Could not check GitHub: <?php echo esc_html( $version_info['error'] ); ?></p>
+						<p class="adct-update-note">Could not check for updates: <?php echo esc_html( $version_info['error'] ); ?></p>
 					<?php endif; ?>
 					<p style="margin-top:10px;">
 						<a href="<?php echo esc_url( wp_nonce_url( add_query_arg( 'adct_check_update', '1', admin_url( 'admin.php?page=tracking-template' ) ), 'adct_check_update' ) ); ?>">Check for updates</a>
@@ -1118,7 +1118,7 @@ class ADCT_Admin {
 					<button type="button" class="button button-secondary" id="adct-copy-utm">Copy UTM suffix</button>
 					<span class="adct-copy-toast" id="adct-copy-toast">Copied to clipboard</span>
 					<a class="button button-secondary" href="<?php echo esc_url( $export_url ); ?>">Export CSV</a>
-					<a class="button button-link" href="<?php echo esc_url( self::GITHUB_REPO ); ?>" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+					<a class="button button-link" href="<?php echo esc_url( self::HUB_URL ); ?>" target="_blank" rel="noopener noreferrer">License Hub</a>
 				</div>
 			</div>
 

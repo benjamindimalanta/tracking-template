@@ -147,6 +147,11 @@ tracking-template/
 
 ## Changelog
 
+### 1.6.2
+
+- **Updates via License Hub** — plugin checks `https://plugin.cubescenter.org/api/update.json` (not GitHub)
+- Release zips hosted at `plugin.cubescenter.org/releases/` (channel starts at v1.6.1)
+
 ### 1.6.1
 
 - **Tighter licensing** — upgrades from pre-1.6.0 (or sites with existing tracking data) require a license immediately
