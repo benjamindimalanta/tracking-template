@@ -1126,8 +1126,8 @@ class ADCT_Admin {
 				<h3>System status</h3>
 				<ul class="adct-status-list">
 					<li>
-						<span class="adct-status-dot <?php echo ADCT_License::is_active() ? 'is-ok' : 'is-warn'; ?>"></span>
-						License <?php echo ADCT_License::is_active() ? 'active' : 'inactive'; ?>
+						<span class="adct-status-dot <?php echo ADCT_License::has_valid_license() ? 'is-ok' : ( ADCT_License::is_active() ? 'is-warn' : 'is-warn' ); ?>"></span>
+						License <?php echo ADCT_License::has_valid_license() ? 'active' : ( ADCT_License::in_install_grace_period() && '' === ADCT_License::get_key() ? 'trial' : 'inactive' ); ?>
 					</li>
 					<li>
 						<span class="adct-status-dot is-ok"></span>
@@ -1246,7 +1246,7 @@ class ADCT_Admin {
 		$site_host   = ADCT_License::get_site_host();
 		$checked_at  = get_option( ADCT_License::OPTION_CHECKED_AT, '' );
 		$last_valid  = get_option( ADCT_License::OPTION_LAST_VALID_AT, '' );
-		$is_active   = ! empty( $summary['active'] ) && 'active' === $summary['status'];
+		$is_active   = ADCT_License::has_valid_license();
 		$show_form   = ! $is_active || ! empty( $_GET['adct_change_license'] );
 		$badge_class = ! empty( $summary['active'] ) ? 'is-active' : ( in_array( $summary['status'], array( 'grace_install', 'grace_remote' ), true ) ? 'is-warn' : 'is-error' );
 		?>
@@ -1367,7 +1367,7 @@ class ADCT_Admin {
 			return;
 		}
 
-		if ( ! ADCT_License::is_active() ) {
+		if ( ! ADCT_License::has_valid_license() ) {
 			self::render_locked_page();
 			return;
 		}
@@ -1724,7 +1724,7 @@ class ADCT_Admin {
 			return;
 		}
 
-		if ( ! ADCT_License::is_active() ) {
+		if ( ! ADCT_License::has_valid_license() ) {
 			self::render_locked_page();
 			return;
 		}
@@ -2086,7 +2086,7 @@ class ADCT_Admin {
 	}
 
 	public static function maybe_export_csv() {
-		if ( ! is_admin() || ! ADCT_Settings::user_can_view() || ! ADCT_License::is_active() ) {
+		if ( ! is_admin() || ! ADCT_Settings::user_can_view() || ! ADCT_License::has_valid_license() ) {
 			return;
 		}
 
@@ -2187,7 +2187,7 @@ class ADCT_Admin {
 			return;
 		}
 
-		if ( ! ADCT_License::is_active() ) {
+		if ( ! ADCT_License::has_valid_license() ) {
 			self::render_locked_page();
 			return;
 		}

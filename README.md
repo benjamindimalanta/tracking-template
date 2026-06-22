@@ -108,7 +108,8 @@ Use the License Hub dashboard — **Revoke** or deactivate a key. No GitHub or f
 
 ### Grace periods
 
-- **14 days** after first install to enter a key (tracking works, admin warning shown)
+- **3 days** front-end tracking trial on a **brand-new** install with no prior click data (admin reporting still requires a key)
+- **No trial** when upgrading from v1.5.x or any site that already has tracking history
 - **7 days** if license server unreachable but key was previously valid
 
 ### Local development
@@ -145,6 +146,12 @@ tracking-template/
 ---
 
 ## Changelog
+
+### 1.6.1
+
+- **Tighter licensing** — upgrades from pre-1.6.0 (or sites with existing tracking data) require a license immediately
+- **Admin locked during trial** — Overview/Leads/Sessions need a valid key; short front-end trial only for brand-new installs (3 days)
+- **Old versions note** — only v1.6.0+ enforces licensing; stay on latest release
 
 ### 1.6.0
 

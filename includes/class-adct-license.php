@@ -14,6 +14,7 @@ class ADCT_License {
 	const OPTION_LAST_VALID_AT = 'adct_license_last_valid_at';
 	const OPTION_MESSAGE       = 'adct_license_message';
 	const OPTION_GRACE_UNTIL   = 'adct_license_grace_until';
+	const OPTION_PLUGIN_VERSION = 'adct_plugin_version';
 
 	const TRANSIENT_VALID = 'adct_license_valid';
 
@@ -21,7 +22,8 @@ class ADCT_License {
 
 	const CACHE_TTL = 43200;
 
-	const GRACE_DAYS = 14;
+	/** Trial days for a brand-new install with no prior tracking data. */
+	const GRACE_DAYS = 3;
 
 	const REMOTE_GRACE_DAYS = 7;
 
@@ -44,7 +46,53 @@ class ADCT_License {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', self::CRON_HOOK );
 		}
 
-		self::maybe_start_grace_period();
+		self::bootstrap_licensing();
+	}
+
+	/**
+	 * First-run / upgrade rules:
+	 * - Fresh install (no tracking history): short trial grace for front-end tracking only.
+	 * - Upgrade from pre-1.6.0 or site with existing clicks: license required immediately.
+	 */
+	public static function bootstrap_licensing() {
+		$previous = (string) get_option( self::OPTION_PLUGIN_VERSION, '' );
+
+		if ( version_compare( ADCT_VERSION, '1.6.0', '<' ) ) {
+			return;
+		}
+
+		if ( '' === $previous ) {
+			if ( self::site_has_tracking_history() ) {
+				delete_option( self::OPTION_GRACE_UNTIL );
+			} else {
+				self::maybe_start_grace_period();
+			}
+		} elseif ( version_compare( $previous, '1.6.0', '<' ) ) {
+			delete_option( self::OPTION_GRACE_UNTIL );
+		}
+
+		if ( $previous !== ADCT_VERSION ) {
+			if (
+				version_compare( ADCT_VERSION, '1.6.1', '>=' )
+				&& version_compare( $previous, '1.6.1', '<' )
+				&& ! self::has_valid_license()
+				&& self::site_has_tracking_history()
+			) {
+				delete_option( self::OPTION_GRACE_UNTIL );
+			}
+
+			update_option( self::OPTION_PLUGIN_VERSION, ADCT_VERSION );
+		}
+	}
+
+	private static function site_has_tracking_history() {
+		if ( ! class_exists( 'ADCT_Database' ) ) {
+			return false;
+		}
+
+		$snapshot = ADCT_Database::get_live_snapshot();
+
+		return ! empty( $snapshot['total_all_time'] ) || ! empty( $snapshot['sessions_all_time'] );
 	}
 
 	public static function maybe_start_grace_period() {
@@ -67,11 +115,20 @@ class ADCT_License {
 	}
 
 	public static function is_active() {
-		if ( self::is_bypassed() ) {
+		if ( self::has_valid_license() ) {
 			return true;
 		}
 
-		if ( self::in_install_grace_period() ) {
+		if ( self::in_install_grace_period() && '' === self::get_key() ) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/** Valid activated license — required for admin reporting (no install trial). */
+	public static function has_valid_license() {
+		if ( self::is_bypassed() ) {
 			return true;
 		}
 
@@ -431,8 +488,9 @@ class ADCT_License {
 	public static function get_status_summary() {
 		if ( self::is_bypassed() ) {
 			return array(
-				'active'  => true,
-				'status'  => 'bypass',
+				'active'   => true,
+				'licensed' => true,
+				'status'   => 'bypass',
 				'label'   => 'Bypassed',
 				'message' => 'License checks are bypassed on this site.',
 				'expires' => '',
@@ -442,8 +500,9 @@ class ADCT_License {
 
 		if ( self::in_install_grace_period() && '' === self::get_key() ) {
 			return array(
-				'active'  => true,
-				'status'  => 'grace_install',
+				'active'   => true,
+				'licensed' => false,
+				'status'   => 'grace_install',
 				'label'   => 'Activation required',
 				'message' => sprintf(
 					'Enter your license key within %d day(s) to keep tracking active.',
@@ -471,6 +530,7 @@ class ADCT_License {
 
 		return array(
 			'active'  => self::is_active(),
+			'licensed' => self::has_valid_license(),
 			'status'  => $status,
 			'label'   => $labels[ $status ] ?? ucfirst( $status ),
 			'message' => $message,
