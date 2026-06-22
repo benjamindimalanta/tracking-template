@@ -85,9 +85,7 @@
 			payload.source,
 		];
 
-		if (payload.contact_type !== 'elfsight_call') {
-			keyParts.push(payload.clicked_value);
-		}
+		keyParts.push(payload.clicked_value);
 
 		var key = keyParts.join('|');
 
@@ -274,34 +272,15 @@
 		);
 	}
 
-	function getElfsightClickValue(event) {
-		var tel = findTelHref(event);
-		if (tel) {
-			return tel;
-		}
-
-		var path = eventPath(event);
-		var i;
-		var j;
-
-		for (i = 0; i < path.length; i++) {
-			var node = path[i];
-
-			if (!node || !node.classList) {
-				continue;
-			}
-
-			for (j = 0; j < node.classList.length; j++) {
-				if (node.classList[j].indexOf('eapp-click-to-call') !== -1) {
-					return node.classList[j];
-				}
-			}
-		}
-
-		return 'elfsight_widget_click';
-	}
-
 	function trackElfsightClick(event) {
+		var tel = findTelHref(event);
+
+		// Elfsight is a two-step UI: open widget, then tap the phone number to dial.
+		// Only the tel: click is a real call intent — ignore widget chrome / open panel clicks.
+		if (!tel) {
+			return;
+		}
+
 		var ts = event.timeStamp || Date.now();
 
 		if (trackElfsightClick.lastTs && ts - trackElfsightClick.lastTs < 250) {
@@ -316,7 +295,7 @@
 				'',
 				'Elfsight Call Us',
 				'elfsight_widget',
-				getElfsightClickValue(event)
+				tel
 			)
 		);
 	}

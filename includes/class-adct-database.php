@@ -263,6 +263,7 @@ class ADCT_Database {
 			'utm_campaign'    => isset( $_GET['utm_campaign'] ) ? sanitize_text_field( wp_unslash( $_GET['utm_campaign'] ) ) : '',
 			'landing_path'    => isset( $_GET['landing_path'] ) ? sanitize_text_field( wp_unslash( $_GET['landing_path'] ) ) : '',
 			'search'          => isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '',
+			'session_id'      => isset( $_GET['session_id'] ) ? sanitize_text_field( wp_unslash( $_GET['session_id'] ) ) : '',
 		);
 	}
 
@@ -330,6 +331,18 @@ class ADCT_Database {
 		if ( ! empty( $filters['landing_path'] ) ) {
 			$where[]  = 'landing_path = %s';
 			$params[] = $filters['landing_path'];
+		}
+
+		if ( ! empty( $filters['session_id'] ) ) {
+			$session_id = sanitize_text_field( $filters['session_id'] );
+
+			if ( 0 === strpos( $session_id, 'legacy-' ) ) {
+				$where[]  = "session_id = '' AND id = %d";
+				$params[] = absint( substr( $session_id, 7 ) );
+			} else {
+				$where[]  = 'session_id = %s';
+				$params[] = $session_id;
+			}
 		}
 
 		if ( ! empty( $filters['search'] ) ) {
@@ -670,5 +683,148 @@ class ADCT_Database {
 			'total_all_time'  => self::count_clicks( array() ),
 			'sessions_all_time' => self::count_sessions( array() ),
 		);
+	}
+
+	public static function get_session_row_key( $row ) {
+		if ( is_object( $row ) ) {
+			if ( ! empty( $row->session_id ) ) {
+				return (string) $row->session_id;
+			}
+
+			if ( ! empty( $row->id ) ) {
+				return 'legacy-' . absint( $row->id );
+			}
+		}
+
+		return '';
+	}
+
+	public static function get_lead_session_context( array $rows ) {
+		$session_ids = array();
+
+		foreach ( $rows as $row ) {
+			$key = self::get_session_row_key( $row );
+
+			if ( '' !== $key && 0 !== strpos( $key, 'legacy-' ) ) {
+				$session_ids[] = $key;
+			}
+		}
+
+		$session_ids = array_values( array_unique( $session_ids ) );
+
+		return array(
+			'summaries' => self::get_session_summaries_by_ids( $session_ids ),
+			'positions' => self::get_click_positions_for_rows( $rows ),
+		);
+	}
+
+	public static function get_session_summaries_by_ids( array $session_ids ) {
+		global $wpdb;
+
+		$session_ids = array_values(
+			array_filter(
+				array_unique(
+					array_map( 'sanitize_text_field', $session_ids )
+				)
+			)
+		);
+
+		if ( empty( $session_ids ) ) {
+			return array();
+		}
+
+		$table        = self::table_name();
+		$placeholders = implode( ',', array_fill( 0, count( $session_ids ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$sql = "SELECT session_id,
+				COUNT(*) AS click_count,
+				MIN(clicked_at) AS session_started,
+				MAX(clicked_at) AS session_ended,
+				MAX(entry_source) AS entry_source,
+				MAX(device_type) AS device_type,
+				MAX(visitor_country) AS visitor_country,
+				MAX(landing_path) AS landing_path
+			FROM {$table}
+			WHERE session_id IN ({$placeholders})
+			GROUP BY session_id";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $session_ids ) );
+
+		$summaries = array();
+
+		foreach ( $rows as $row ) {
+			$summaries[ $row->session_id ] = $row;
+		}
+
+		return $summaries;
+	}
+
+	public static function get_click_positions_for_rows( array $rows ) {
+		global $wpdb;
+
+		$session_ids = array();
+
+		foreach ( $rows as $row ) {
+			$key = self::get_session_row_key( $row );
+
+			if ( '' !== $key && 0 !== strpos( $key, 'legacy-' ) ) {
+				$session_ids[] = $key;
+			}
+		}
+
+		$session_ids = array_values( array_unique( $session_ids ) );
+		$positions   = array();
+
+		foreach ( $rows as $row ) {
+			$key = self::get_session_row_key( $row );
+
+			if ( '' === $key ) {
+				continue;
+			}
+
+			if ( 0 === strpos( $key, 'legacy-' ) ) {
+				$positions[ absint( $row->id ) ] = array(
+					'position' => 1,
+					'total'    => 1,
+				);
+			}
+		}
+
+		if ( empty( $session_ids ) ) {
+			return $positions;
+		}
+
+		$table        = self::table_name();
+		$placeholders = implode( ',', array_fill( 0, count( $session_ids ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$sql = "SELECT id, session_id
+			FROM {$table}
+			WHERE session_id IN ({$placeholders})
+			ORDER BY session_id ASC, clicked_at ASC, id ASC";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$clicks = $wpdb->get_results( $wpdb->prepare( $sql, $session_ids ) );
+
+		$grouped = array();
+
+		foreach ( $clicks as $click ) {
+			$grouped[ $click->session_id ][] = (int) $click->id;
+		}
+
+		foreach ( $grouped as $ids ) {
+			$total = count( $ids );
+
+			foreach ( $ids as $index => $click_id ) {
+				$positions[ $click_id ] = array(
+					'position' => $index + 1,
+					'total'    => $total,
+				);
+			}
+		}
+
+		return $positions;
 	}
 }

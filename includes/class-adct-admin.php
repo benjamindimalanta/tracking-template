@@ -295,6 +295,22 @@ class ADCT_Admin {
 			.adct-lead-meta { display: grid; gap: 4px; font-size: 12px; color: #50575e; }
 			.adct-lead-meta strong { color: #1a2332; font-weight: 600; }
 			.adct-lead-empty-product { color: #646970; font-size: 12px; font-style: italic; }
+			.adct-lead-session { position: relative; display: inline-block; min-width: 88px; }
+			.adct-lead-session-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: #eef2f7; color: #1a4b91; font-size: 12px; font-weight: 700; text-decoration: none; transition: background .18s ease, color .18s ease, box-shadow .18s ease; }
+			.adct-lead-session-link:hover { background: #dce9fb; color: #135e96; box-shadow: 0 2px 8px rgba(26,75,145,.12); }
+			.adct-lead-session-meta { display: block; margin-top: 4px; font-size: 11px; color: #646970; }
+			.adct-session-popover { display: none; position: absolute; left: 0; top: calc(100% + 8px); z-index: 30; width: 260px; padding: 12px 14px; border-radius: 12px; border: 1px solid #dce1e8; background: #fff; box-shadow: 0 12px 28px rgba(26,35,50,.14); text-align: left; }
+			.adct-session-popover::before { content: ''; position: absolute; top: -6px; left: 18px; width: 10px; height: 10px; background: #fff; border-left: 1px solid #dce1e8; border-top: 1px solid #dce1e8; transform: rotate(45deg); }
+			.adct-lead-session:hover .adct-session-popover, .adct-lead-session:focus-within .adct-session-popover { display: block; }
+			.adct-session-popover h4 { margin: 0 0 8px; font-size: 12px; font-weight: 700; color: #1a2332; }
+			.adct-session-popover dl { margin: 0; display: grid; gap: 6px; }
+			.adct-session-popover dt { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #8c8f94; font-weight: 700; }
+			.adct-session-popover dd { margin: 0 0 2px; font-size: 12px; color: #1a2332; line-height: 1.4; }
+			.adct-session-popover-foot { margin-top: 10px; padding-top: 10px; border-top: 1px solid #eceff3; font-size: 11px; }
+			.adct-session-popover-foot a { color: #2271b1; font-weight: 600; text-decoration: none; }
+			.adct-session-popover-foot a:hover { text-decoration: underline; }
+			.adct-session-focus-banner { margin: 0 0 16px; padding: 12px 14px; border-radius: 12px; border: 1px solid #c9daf8; background: #eef4fd; color: #1a4b91; font-size: 13px; }
+			.adct-session-focus-banner a { color: #135e96; font-weight: 600; }
 			@media screen and (max-width: 960px) {
 				.adct-summary-grid { grid-template-columns: 1fr; }
 				.adct-chart-shell { max-width: 240px; }
@@ -725,7 +741,7 @@ class ADCT_Admin {
 		return wp_date( 'M j, Y · g:i A', $timestamp );
 	}
 
-	public static function render_session_card( $session, array $clicks ) {
+	public static function render_session_card( $session, array $clicks, $is_focused = false ) {
 		$location     = trim( implode( ', ', array_filter( array( $session->visitor_country ?? '', $session->visitor_region ?? '' ) ) ) );
 		$entry_source = sanitize_key( (string) ( $session->entry_source ?? '' ) );
 		$source_class = $entry_source ? 'is-source-' . $entry_source : 'is-source-direct';
@@ -739,7 +755,7 @@ class ADCT_Admin {
 			}
 		}
 		?>
-		<details class="adct-session-card <?php echo esc_attr( $source_class ); ?>">
+		<details class="adct-session-card <?php echo esc_attr( $source_class ); ?>" <?php echo $is_focused ? 'id="adct-session-focus" open' : ''; ?>>
 			<summary>
 				<span class="adct-session-chevron" aria-hidden="true">›</span>
 				<div class="adct-session-summary-main">
@@ -1506,6 +1522,7 @@ class ADCT_Admin {
 		}
 
 		$lead_rows      = ADCT_Database::get_clicks( $filters, $per_page, $offset );
+		$session_context = ADCT_Database::get_lead_session_context( $lead_rows );
 		$channel_counts = ADCT_Leads::get_channel_counts( $tab_filters );
 		$agents         = ADCT_Database::get_distinct_values( 'agent_name' );
 		$entry_sources  = ADCT_Database::get_distinct_values( 'entry_source' );
@@ -1659,6 +1676,7 @@ class ADCT_Admin {
 								<thead>
 									<tr>
 										<th scope="col">Date</th>
+										<th scope="col">Session</th>
 										<th scope="col">Status</th>
 										<th scope="col">Enquiry about</th>
 										<th scope="col">Source</th>
@@ -1668,7 +1686,7 @@ class ADCT_Admin {
 								</thead>
 								<tbody>
 									<?php foreach ( $lead_rows as $row ) : ?>
-										<?php self::render_lead_row( $row ); ?>
+										<?php self::render_lead_row( $row, $session_context ); ?>
 									<?php endforeach; ?>
 								</tbody>
 							</table>
@@ -1684,14 +1702,17 @@ class ADCT_Admin {
 		<?php
 	}
 
-	public static function render_lead_row( $row ) {
+	public static function render_lead_row( $row, array $session_context = array() ) {
 		$badge       = self::contact_type_badge_class( $row->contact_type ?? '' );
 		$status      = ADCT_Leads::get_lead_status_label( $row->contact_type ?? '' );
 		$has_product = ! empty( $row->product_title ) || ! empty( $row->product_id );
 		?>
 		<tr>
 			<td>
-				<div class="adct-lead-date"><?php echo esc_html( ADCT_Leads::format_lead_datetime( $row->clicked_at ?? '' ) ); ?></div>
+				<div class="adct-lead-date" title="<?php echo esc_attr( $row->clicked_at ?? '' ); ?>"><?php echo esc_html( ADCT_Leads::format_lead_datetime( $row->clicked_at ?? '' ) ); ?></div>
+			</td>
+			<td>
+				<?php self::render_lead_session_cell( $row, $session_context ); ?>
 			</td>
 			<td>
 				<span class="adct-badge <?php echo esc_attr( $badge ); ?>"><?php echo esc_html( $status ); ?></span>
@@ -1748,6 +1769,81 @@ class ADCT_Admin {
 			<td><?php echo esc_html( $row->utm_campaign ?: '—' ); ?></td>
 			<td><?php echo esc_html( ADCT_Leads::format_salesman_name( $row->contact_type ?? '', $row->agent_name ?? '' ) ); ?></td>
 		</tr>
+		<?php
+	}
+
+	public static function render_lead_session_cell( $row, array $session_context = array() ) {
+		$session_key = ADCT_Leads::get_session_key_for_row( $row );
+		$summaries   = $session_context['summaries'] ?? array();
+		$positions   = $session_context['positions'] ?? array();
+		$row_id      = absint( $row->id ?? 0 );
+		$position    = $positions[ $row_id ] ?? null;
+		$summary     = ( ! empty( $session_key ) && isset( $summaries[ $session_key ] ) ) ? $summaries[ $session_key ] : null;
+		$session_url = ADCT_Leads::build_session_view_url( $session_key );
+
+		if ( '' === $session_key || ! $session_url ) {
+			echo '<span class="adct-lead-empty-product">No session</span>';
+			return;
+		}
+
+		$session_code = ADCT_Leads::format_session_code( $session_key );
+		$position_txt = $position
+			? sprintf(
+				/* translators: 1: click number in session, 2: total clicks in session */
+				__( 'Click %1$d of %2$d', 'tracking-template' ),
+				(int) $position['position'],
+				(int) $position['total']
+			)
+			: '';
+		?>
+		<div class="adct-lead-session">
+			<a class="adct-lead-session-link" href="<?php echo esc_url( $session_url ); ?>" title="<?php esc_attr_e( 'Open this visitor session', 'tracking-template' ); ?>">
+				<?php echo esc_html( $session_code ); ?>
+			</a>
+			<?php if ( $position_txt ) : ?>
+				<span class="adct-lead-session-meta"><?php echo esc_html( $position_txt ); ?></span>
+			<?php endif; ?>
+			<div class="adct-session-popover" role="tooltip">
+				<h4><?php echo esc_html( sprintf( __( 'Session %s', 'tracking-template' ), $session_code ) ); ?></h4>
+				<dl>
+					<?php if ( $position_txt ) : ?>
+						<div>
+							<dt><?php esc_html_e( 'This lead', 'tracking-template' ); ?></dt>
+							<dd><?php echo esc_html( $position_txt . ' in this visit' ); ?></dd>
+						</div>
+					<?php endif; ?>
+					<?php if ( $summary ) : ?>
+						<div>
+							<dt><?php esc_html_e( 'Session clicks', 'tracking-template' ); ?></dt>
+							<dd><?php echo esc_html( number_format_i18n( (int) $summary->click_count ) ); ?></dd>
+						</div>
+						<div>
+							<dt><?php esc_html_e( 'Visit started', 'tracking-template' ); ?></dt>
+							<dd><?php echo esc_html( ADCT_Leads::format_lead_datetime( $summary->session_started ?? '' ) ); ?></dd>
+						</div>
+						<?php if ( ! empty( $summary->entry_source ) ) : ?>
+							<div>
+								<dt><?php esc_html_e( 'Source', 'tracking-template' ); ?></dt>
+								<dd><?php echo esc_html( self::format_entry_source( $summary->entry_source ) ); ?></dd>
+							</div>
+						<?php endif; ?>
+						<?php if ( ! empty( $summary->device_type ) ) : ?>
+							<div>
+								<dt><?php esc_html_e( 'Device', 'tracking-template' ); ?></dt>
+								<dd><?php echo esc_html( self::format_device_type( $summary->device_type ) ); ?></dd>
+							</div>
+						<?php endif; ?>
+					<?php endif; ?>
+					<div>
+						<dt><?php esc_html_e( 'Lead ID', 'tracking-template' ); ?></dt>
+						<dd>#<?php echo esc_html( number_format_i18n( $row_id ) ); ?></dd>
+					</div>
+				</dl>
+				<p class="adct-session-popover-foot">
+					<a href="<?php echo esc_url( $session_url ); ?>"><?php esc_html_e( 'View full session →', 'tracking-template' ); ?></a>
+				</p>
+			</div>
+		</div>
 		<?php
 	}
 
@@ -1888,6 +1984,7 @@ class ADCT_Admin {
 		$snapshot     = $page_context['snapshot'];
 		$version_info = $page_context['version_info'];
 		$show_setup   = $page_context['show_setup'];
+		$focus_session = ! empty( $filters['session_id'] ) ? sanitize_text_field( $filters['session_id'] ) : '';
 
 		$base_url   = admin_url( 'admin.php?page=tracking-template-sessions' );
 		$query_args = array_merge(
@@ -2060,6 +2157,19 @@ class ADCT_Admin {
 				</p>
 			</div>
 
+			<?php if ( $focus_session ) : ?>
+				<div class="adct-session-focus-banner">
+					<?php
+					printf(
+						/* translators: %s: short session code */
+						esc_html__( 'Showing visitor session %s from Leads. Expand the card below to see every click in this visit.', 'tracking-template' ),
+						esc_html( ADCT_Leads::format_session_code( $focus_session ) )
+					);
+					?>
+					<a href="<?php echo esc_url( $base_url ); ?>"><?php esc_html_e( 'Clear session filter', 'tracking-template' ); ?></a>
+				</div>
+			<?php endif; ?>
+
 			<?php if ( empty( $session_rows ) ) : ?>
 				<div class="adct-empty">No inquiry sessions recorded yet.</div>
 			<?php else : ?>
@@ -2067,7 +2177,8 @@ class ADCT_Admin {
 					<?php foreach ( $session_rows as $session ) : ?>
 						<?php
 						$session_clicks = $clicks_by_session[ $session->session_key ] ?? array();
-						self::render_session_card( $session, $session_clicks );
+						$is_focused     = $focus_session && $focus_session === (string) $session->session_key;
+						self::render_session_card( $session, $session_clicks, $is_focused );
 						?>
 					<?php endforeach; ?>
 				</div>

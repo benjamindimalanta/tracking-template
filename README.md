@@ -4,6 +4,8 @@ A reusable WordPress plugin for contact-click tracking, marketing attribution, a
 
 **Created by [Benjamin Clar](https://github.com/benjamindimalanta)**
 
+📄 **[Full project report (documentation + screenshots)](docs/PROJECT-REPORT.md)**
+
 ---
 
 ## Features
@@ -93,6 +95,12 @@ tracking-template/
 ---
 
 ## Changelog
+
+### 1.4.4
+
+- Leads page **Session** column — short session code, click position (e.g. Click 2 of 4), hover details, link to Sessions
+- Sessions page opens and filters to the selected session when linked from Leads
+- Date display shows seconds; Elfsight tracks only actual phone-number (`tel:`) clicks
 
 ### 1.4.3
 

@@ -125,20 +125,21 @@ class ADCT_Leads {
 			return '—';
 		}
 
-		$timestamp = strtotime( (string) $datetime );
+		// clicked_at is stored via current_time( 'mysql' ) — already site-local.
+		$timestamp = (int) mysql2date( 'U', (string) $datetime, false );
 
-		if ( ! $timestamp ) {
+		if ( $timestamp <= 0 ) {
 			return (string) $datetime;
 		}
 
 		$today     = wp_date( 'Y-m-d' );
-		$yesterday = wp_date( 'Y-m-d', strtotime( '-1 day' ) );
+		$yesterday = wp_date( 'Y-m-d', time() - DAY_IN_SECONDS );
 		$day       = wp_date( 'Y-m-d', $timestamp );
-		$time      = wp_date( 'g:i A', $timestamp );
+		$time      = wp_date( 'g:i:s A', $timestamp );
 
 		if ( $day === $today ) {
 			return sprintf(
-				/* translators: %s: time */
+				/* translators: %s: time including seconds */
 				__( 'Today %s', 'tracking-template' ),
 				$time
 			);
@@ -146,13 +147,13 @@ class ADCT_Leads {
 
 		if ( $day === $yesterday ) {
 			return sprintf(
-				/* translators: %s: time */
+				/* translators: %s: time including seconds */
 				__( 'Yesterday %s', 'tracking-template' ),
 				$time
 			);
 		}
 
-		return wp_date( 'M j, Y · g:i A', $timestamp );
+		return wp_date( 'M j, Y · g:i:s A', $timestamp );
 	}
 
 	public static function build_channel_tab_url( $channel, array $args = array() ) {
@@ -161,5 +162,41 @@ class ADCT_Leads {
 		unset( $args['paged'] );
 
 		return add_query_arg( $args, admin_url( 'admin.php' ) );
+	}
+
+	public static function format_session_code( $session_key ) {
+		$session_key = (string) $session_key;
+
+		if ( '' === $session_key ) {
+			return '—';
+		}
+
+		if ( 0 === strpos( $session_key, 'legacy-' ) ) {
+			return '#' . substr( $session_key, 7 );
+		}
+
+		$session_key = str_replace( '-', '', $session_key );
+
+		return '#' . strtoupper( substr( $session_key, -4 ) );
+	}
+
+	public static function build_session_view_url( $session_key ) {
+		$session_key = (string) $session_key;
+
+		if ( '' === $session_key ) {
+			return '';
+		}
+
+		return add_query_arg(
+			array(
+				'page'       => 'tracking-template-sessions',
+				'session_id' => rawurlencode( $session_key ),
+			),
+			admin_url( 'admin.php' )
+		);
+	}
+
+	public static function get_session_key_for_row( $row ) {
+		return ADCT_Database::get_session_row_key( $row );
 	}
 }
