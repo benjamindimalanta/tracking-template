@@ -149,7 +149,7 @@ class ADCT_Admin {
 			.adct-pagination { margin: 20px 0 0; }
 			.adct-pagination .page-numbers { margin-right: 4px; }
 			.adct-card-list { display: grid; gap: 16px; }
-			.adct-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: #2271b1; color: #fff; line-height: 1.4; }
+			.adct-badge { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: #2271b1; color: #fff; line-height: 1.4; white-space: nowrap; }
 			.adct-badge.is-whatsapp { background: linear-gradient(135deg, #1ebe57, #25d366); }
 			.adct-badge.is-phone { background: linear-gradient(135deg, #2f4fd8, #3858e9); }
 			.adct-badge.is-showroom { background: linear-gradient(135deg, #563a82, #6b4e9b); }
@@ -287,7 +287,9 @@ class ADCT_Admin {
 			.adct-leads-table td { padding: 14px 16px; vertical-align: top; border-bottom: 1px solid #f0f0f1; font-size: 13px; color: #1d2327; }
 			.adct-leads-table tr:last-child td { border-bottom: 0; }
 			.adct-leads-table tbody tr:hover { background: #fafbfc; }
-			.adct-lead-date { font-weight: 600; color: #1a2332; white-space: nowrap; }
+			.adct-lead-date { font-weight: 600; color: #1a2332; white-space: nowrap; display: grid; gap: 2px; }
+			.adct-lead-date-day { font-size: 12px; line-height: 1.2; }
+			.adct-lead-date-time { font-size: 11px; line-height: 1.2; color: #646970; font-weight: 500; }
 			.adct-lead-product { display: flex; gap: 12px; align-items: flex-start; min-width: 240px; }
 			.adct-lead-product .adct-thumb, .adct-lead-product .adct-thumb-empty { width: 56px; height: 56px; flex: 0 0 56px; }
 			.adct-lead-product h4 { margin: 0 0 4px; font-size: 13px; line-height: 1.35; color: #1a2332; }
@@ -295,6 +297,7 @@ class ADCT_Admin {
 			.adct-lead-meta { display: grid; gap: 4px; font-size: 12px; color: #50575e; }
 			.adct-lead-meta strong { color: #1a2332; font-weight: 600; }
 			.adct-lead-empty-product { color: #646970; font-size: 12px; font-style: italic; }
+			.adct-leads-table .adct-badge { min-height: 22px; min-width: 116px; padding-left: 10px; padding-right: 10px; }
 			.adct-lead-session { position: relative; display: inline-block; min-width: 88px; }
 			.adct-lead-session-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: #eef2f7; color: #1a4b91; font-size: 12px; font-weight: 700; text-decoration: none; transition: background .18s ease, color .18s ease, box-shadow .18s ease; }
 			.adct-lead-session-link:hover { background: #dce9fb; color: #135e96; box-shadow: 0 2px 8px rgba(26,75,145,.12); }
@@ -401,6 +404,37 @@ class ADCT_Admin {
 		);
 
 		return $labels[ $entry_source ] ?? ucwords( str_replace( '_', ' ', $entry_source ) );
+	}
+
+	public static function format_landing_path_short( $landing_path, $max_length = 42 ) {
+		$landing_path = trim( (string) $landing_path );
+
+		if ( '' === $landing_path ) {
+			return '';
+		}
+
+		if ( preg_match( '#^https?://#i', $landing_path ) ) {
+			$parsed = wp_parse_url( $landing_path );
+
+			if ( ! empty( $parsed['path'] ) ) {
+				$landing_path = $parsed['path'];
+			}
+
+			if ( ! empty( $parsed['query'] ) ) {
+				$landing_path .= '?' . $parsed['query'];
+			}
+		} elseif ( false !== strpos( $landing_path, '/' ) && '/' !== $landing_path[0] ) {
+			$first_slash = strpos( $landing_path, '/' );
+			$landing_path = substr( $landing_path, $first_slash );
+		}
+
+		$landing_path = preg_replace( '#/+#', '/', $landing_path );
+
+		if ( strlen( $landing_path ) <= $max_length ) {
+			return $landing_path;
+		}
+
+		return substr( $landing_path, 0, $max_length - 1 ) . '…';
 	}
 
 	public static function format_duration( $seconds ) {
@@ -1706,10 +1740,18 @@ class ADCT_Admin {
 		$badge       = self::contact_type_badge_class( $row->contact_type ?? '' );
 		$status      = ADCT_Leads::get_lead_status_label( $row->contact_type ?? '' );
 		$has_product = ! empty( $row->product_title ) || ! empty( $row->product_id );
+		$date_parts  = ADCT_Leads::format_lead_datetime_parts( $row->clicked_at ?? '' );
+		$source_text = ! empty( $row->entry_source ) ? self::format_entry_source( $row->entry_source ) : '—';
+		$source_hint = self::format_landing_path_short( $row->landing_path ?? '' );
 		?>
 		<tr>
 			<td>
-				<div class="adct-lead-date" title="<?php echo esc_attr( $row->clicked_at ?? '' ); ?>"><?php echo esc_html( ADCT_Leads::format_lead_datetime( $row->clicked_at ?? '' ) ); ?></div>
+				<div class="adct-lead-date" title="<?php echo esc_attr( $row->clicked_at ?? '' ); ?>">
+					<span class="adct-lead-date-day"><?php echo esc_html( $date_parts['date'] ?? '—' ); ?></span>
+					<?php if ( ! empty( $date_parts['time'] ) ) : ?>
+						<span class="adct-lead-date-time"><?php echo esc_html( $date_parts['time'] ); ?></span>
+					<?php endif; ?>
+				</div>
 			</td>
 			<td>
 				<?php self::render_lead_session_cell( $row, $session_context ); ?>
@@ -1760,9 +1802,9 @@ class ADCT_Admin {
 			</td>
 			<td>
 				<div class="adct-lead-meta">
-					<strong><?php echo esc_html( ! empty( $row->entry_source ) ? self::format_entry_source( $row->entry_source ) : '—' ); ?></strong>
-					<?php if ( ! empty( $row->landing_path ) ) : ?>
-						<span><?php echo esc_html( $row->landing_path ); ?></span>
+					<strong><?php echo esc_html( $source_text ); ?></strong>
+					<?php if ( '' !== $source_hint ) : ?>
+						<span title="<?php echo esc_attr( $row->landing_path ?? '' ); ?>"><?php echo esc_html( $source_hint ); ?></span>
 					<?php endif; ?>
 				</div>
 			</td>

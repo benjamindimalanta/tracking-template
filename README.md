@@ -96,6 +96,12 @@ tracking-template/
 
 ## Changelog
 
+### 1.4.5
+
+- Leads **Date** column shows day and time on separate lines for easier scanning
+- Leads **Source** column simplified — short landing path instead of long URLs (full path on hover)
+- Unified **Status** badge sizing across WhatsApp, Phone, and Widget call leads
+
 ### 1.4.4
 
 - Leads page **Session** column — short session code, click position (e.g. Click 2 of 4), hover details, link to Sessions

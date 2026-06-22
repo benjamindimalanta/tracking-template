@@ -121,15 +121,35 @@ class ADCT_Leads {
 	}
 
 	public static function format_lead_datetime( $datetime ) {
-		if ( empty( $datetime ) ) {
+		$parts = self::format_lead_datetime_parts( $datetime );
+
+		if ( empty( $parts['date'] ) ) {
 			return '—';
+		}
+
+		if ( empty( $parts['time'] ) ) {
+			return $parts['date'];
+		}
+
+		return $parts['date'] . ' ' . $parts['time'];
+	}
+
+	public static function format_lead_datetime_parts( $datetime ) {
+		if ( empty( $datetime ) ) {
+			return array(
+				'date' => '—',
+				'time' => '',
+			);
 		}
 
 		// clicked_at is stored via current_time( 'mysql' ) — already site-local.
 		$timestamp = (int) mysql2date( 'U', (string) $datetime, false );
 
 		if ( $timestamp <= 0 ) {
-			return (string) $datetime;
+			return array(
+				'date' => (string) $datetime,
+				'time' => '',
+			);
 		}
 
 		$today     = wp_date( 'Y-m-d' );
@@ -138,22 +158,23 @@ class ADCT_Leads {
 		$time      = wp_date( 'g:i:s A', $timestamp );
 
 		if ( $day === $today ) {
-			return sprintf(
-				/* translators: %s: time including seconds */
-				__( 'Today %s', 'tracking-template' ),
-				$time
+			return array(
+				'date' => __( 'Today', 'tracking-template' ),
+				'time' => $time,
 			);
 		}
 
 		if ( $day === $yesterday ) {
-			return sprintf(
-				/* translators: %s: time including seconds */
-				__( 'Yesterday %s', 'tracking-template' ),
-				$time
+			return array(
+				'date' => __( 'Yesterday', 'tracking-template' ),
+				'time' => $time,
 			);
 		}
 
-		return wp_date( 'M j, Y · g:i:s A', $timestamp );
+		return array(
+			'date' => wp_date( 'M j, Y', $timestamp ),
+			'time' => wp_date( 'g:i:s A', $timestamp ),
+		);
 	}
 
 	public static function build_channel_tab_url( $channel, array $args = array() ) {
