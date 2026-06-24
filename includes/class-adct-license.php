@@ -107,11 +107,36 @@ class ADCT_License {
 	}
 
 	public static function is_bypassed() {
-		if ( defined( 'ADCT_LICENSE_BYPASS' ) && ADCT_LICENSE_BYPASS ) {
+		if ( defined( 'ADCT_LICENSE_BYPASS' ) && ADCT_LICENSE_BYPASS && self::can_use_bypass() ) {
 			return true;
 		}
 
 		return (bool) apply_filters( 'adct_license_bypass', false );
+	}
+
+	private static function can_use_bypass() {
+		if ( ! defined( 'WP_DEBUG' ) || ! WP_DEBUG ) {
+			return false;
+		}
+
+		$env_type = function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : '';
+		$site     = self::get_site_host();
+
+		if ( in_array( $env_type, array( 'local', 'development' ), true ) ) {
+			return true;
+		}
+
+		$local_hosts = array( 'localhost', '127.0.0.1', '::1' );
+
+		if ( in_array( $site, $local_hosts, true ) ) {
+			return true;
+		}
+
+		if ( is_string( $site ) && preg_match( '/\.(local|test|invalid)$/', $site ) ) {
+			return true;
+		}
+
+		return false;
 	}
 
 	public static function is_active() {

@@ -36,6 +36,49 @@ class ADCT_Updater {
 		return ltrim( (string) $version, 'vV' );
 	}
 
+	private static function append_query_args( $url, array $args ) {
+		$parts = wp_parse_url( $url );
+
+		if ( empty( $parts['scheme'] ) || empty( $parts['host'] ) ) {
+			return '';
+		}
+
+		$base = $parts['scheme'] . '://' . $parts['host'];
+
+		if ( ! empty( $parts['port'] ) ) {
+			$base .= ':' . $parts['port'];
+		}
+
+		$base .= $parts['path'] ?? '';
+
+		$existing = array();
+		if ( ! empty( $parts['query'] ) ) {
+			parse_str( $parts['query'], $existing );
+		}
+
+		$query = array_merge( $existing, $args );
+
+		return add_query_arg( $query, $base );
+	}
+
+	private static function get_gated_download_url( $download_url ) {
+		$download_url = (string) $download_url;
+		$key          = ADCT_License::get_key();
+		$site         = ADCT_License::get_site_host();
+
+		if ( '' === $download_url || '' === $key || '' === $site ) {
+			return '';
+		}
+
+		return self::append_query_args(
+			$download_url,
+			array(
+				'license' => ADCT_License::normalize_license_key( $key ),
+				'site'    => $site,
+			)
+		);
+	}
+
 	private static function hub_get( $url ) {
 		return wp_remote_get(
 			$url,
@@ -93,7 +136,7 @@ class ADCT_Updater {
 
 		$release = array(
 			'version'      => self::normalize_version( $data['version'] ),
-			'download_url' => isset( $data['download_url'] ) ? (string) $data['download_url'] : '',
+			'download_url' => self::get_gated_download_url( $data['download_url'] ?? '' ),
 			'html_url'     => isset( $data['homepage'] ) ? (string) $data['homepage'] : 'https://plugin.cubescenter.org',
 			'name'         => isset( $data['name'] ) ? (string) $data['name'] : 'Tracking Template',
 			'body'         => isset( $data['changelog'] ) ? (string) $data['changelog'] : '',
