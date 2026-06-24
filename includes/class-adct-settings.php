@@ -20,9 +20,74 @@ class ADCT_Settings {
 	public static function init() {
 		add_action( 'plugins_loaded', array( __CLASS__, 'sync_capabilities' ), 5 );
 		add_action( 'init', array( __CLASS__, 'sync_capabilities' ), 20 );
+		add_filter( 'map_meta_cap', array( __CLASS__, 'map_meta_cap' ), 10, 4 );
 		add_filter( 'user_has_cap', array( __CLASS__, 'grant_view_capability' ), 10, 4 );
+		add_action( 'upgrader_process_complete', array( __CLASS__, 'on_upgrader_complete' ), 10, 2 );
 		add_action( 'admin_init', array( __CLASS__, 'maybe_save_access_settings' ) );
 		add_action( 'admin_init', array( __CLASS__, 'maybe_prune_allowed_roles' ), 99 );
+	}
+
+	/**
+	 * Map custom menu capability to primitives WordPress always checks reliably.
+	 *
+	 * @param array<int, string> $caps    Primitive capabilities.
+	 * @param string             $cap     Capability being checked.
+	 * @param int                $user_id User ID.
+	 * @param array<int, mixed>  $args    Extra args.
+	 * @return array<int, string>
+	 */
+	public static function map_meta_cap( $caps, $cap, $user_id, $args ) {
+		unset( $args );
+
+		if ( self::CAPABILITY !== $cap ) {
+			return $caps;
+		}
+
+		$user = get_userdata( $user_id );
+
+		if ( ! $user instanceof WP_User ) {
+			return array( 'do_not_allow' );
+		}
+
+		if ( user_can( $user, 'manage_options' ) ) {
+			return array( 'manage_options' );
+		}
+
+		foreach ( self::get_allowed_roles() as $role_slug ) {
+			if ( in_array( $role_slug, (array) $user->roles, true ) ) {
+				return array( 'read' );
+			}
+		}
+
+		return array( 'do_not_allow' );
+	}
+
+	/**
+	 * Re-apply role capabilities after in-dashboard plugin updates.
+	 *
+	 * @param WP_Upgrader $upgrader Upgrader instance.
+	 * @param array       $options  Upgrade context.
+	 */
+	public static function on_upgrader_complete( $upgrader, $options ) {
+		unset( $upgrader );
+
+		if ( empty( $options['action'] ) || 'update' !== $options['action'] ) {
+			return;
+		}
+
+		if ( empty( $options['type'] ) || 'plugin' !== $options['type'] ) {
+			return;
+		}
+
+		if ( empty( $options['plugins'] ) || ! is_array( $options['plugins'] ) ) {
+			return;
+		}
+
+		if ( ! in_array( plugin_basename( ADCT_PLUGIN_FILE ), $options['plugins'], true ) ) {
+			return;
+		}
+
+		self::sync_capabilities();
 	}
 
 	/**
