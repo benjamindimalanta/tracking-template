@@ -18,9 +18,41 @@ class ADCT_Settings {
 	);
 
 	public static function init() {
+		add_action( 'plugins_loaded', array( __CLASS__, 'sync_capabilities' ), 5 );
 		add_action( 'init', array( __CLASS__, 'sync_capabilities' ), 20 );
+		add_filter( 'user_has_cap', array( __CLASS__, 'grant_view_capability' ), 10, 4 );
 		add_action( 'admin_init', array( __CLASS__, 'maybe_save_access_settings' ) );
 		add_action( 'admin_init', array( __CLASS__, 'maybe_prune_allowed_roles' ), 99 );
+	}
+
+	/**
+	 * Administrators always pass menu checks; allowed roles keep access without re-login.
+	 *
+	 * @param array<string, bool> $allcaps All capabilities for the user.
+	 * @param array<int, string>  $caps    Required capabilities.
+	 * @param array<int, mixed>   $args    Capability check args.
+	 * @param WP_User             $user    User object.
+	 */
+	public static function grant_view_capability( $allcaps, $caps, $args, $user ) {
+		unset( $caps, $args );
+
+		if ( ! $user instanceof WP_User ) {
+			return $allcaps;
+		}
+
+		if ( ! empty( $allcaps['manage_options'] ) ) {
+			$allcaps[ self::CAPABILITY ] = true;
+			return $allcaps;
+		}
+
+		foreach ( self::get_allowed_roles() as $role_slug ) {
+			if ( in_array( $role_slug, (array) $user->roles, true ) ) {
+				$allcaps[ self::CAPABILITY ] = true;
+				break;
+			}
+		}
+
+		return $allcaps;
 	}
 
 	public static function is_plugin_admin_page( $page = '' ) {

@@ -26,7 +26,7 @@ Write-Host "Building tracking-template-$Version.zip from $PluginDir"
 if (Test-Path $Staging) { Remove-Item -Recurse -Force $Staging }
 New-Item -ItemType Directory -Path $StagingPlugin -Force | Out-Null
 
-robocopy $PluginDir $StagingPlugin /E /XD .git .next node_modules /NFL /NDL /NJH /NJS /nc /ns /np | Out-Null
+robocopy $PluginDir $StagingPlugin /E /XD .git .next node_modules /XF *.zip /NFL /NDL /NJH /NJS /nc /ns /np | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed with exit code $LASTEXITCODE" }
 
 New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
@@ -42,10 +42,15 @@ Remove-Item -Recurse -Force $Staging
 
 # Verify structure
 $z = [System.IO.Compression.ZipFile]::OpenRead($CanonicalZip)
-$main = $z.Entries | Where-Object { $_.FullName -replace '\\', '/' -eq 'tracking-template/tracking-template.php' }
-$z.Dispose()
-if (-not $main) {
-    throw "Zip verification failed: tracking-template/tracking-template.php not found at root"
+$required = @(
+    'tracking-template/tracking-template.php',
+    'tracking-template/includes/class-adct-visitor.php',
+    'tracking-template/assets/entry-capture.js',
+    'tracking-template/assets/tracker.js'
+)
+foreach ($path in $required) {
+    $found = $z.Entries | Where-Object { ($_.FullName -replace '\\', '/') -eq $path }
+    if (-not $found) { throw "Zip verification failed: missing $path" }
 }
 
 Write-Host "Created: $VersionedZip"
