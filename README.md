@@ -147,6 +147,11 @@ tracking-template/
 
 ## Changelog
 
+### 1.6.3
+
+- Fix License Hub release zip structure for WordPress manual upload
+- License Hub admin moved to `/admin` (public homepage is API info only)
+
 ### 1.6.2
 
 - **Updates via License Hub** — plugin checks `https://plugin.cubescenter.org/api/update.json` (not GitHub)

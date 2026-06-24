@@ -209,12 +209,25 @@ class ADCT_Updater {
 		$plugin_dir    = dirname( ADCT_PLUGIN_FILE );
 		$plugin_folder = basename( $plugin_dir );
 
-		if ( basename( $source ) !== $plugin_folder ) {
-			$new_source = trailingslashit( dirname( $source ) ) . $plugin_folder;
+		if ( basename( $source ) === $plugin_folder ) {
+			return $source;
+		}
 
-			if ( $wp_filesystem->move( $source, $new_source ) ) {
-				return $new_source;
+		$candidates = array(
+			trailingslashit( $source ) . $plugin_folder,
+			trailingslashit( dirname( $source ) ) . $plugin_folder,
+		);
+
+		foreach ( $candidates as $candidate ) {
+			if ( $wp_filesystem->is_dir( $candidate ) ) {
+				return $candidate;
 			}
+		}
+
+		$new_source = trailingslashit( dirname( $source ) ) . $plugin_folder;
+
+		if ( $wp_filesystem->move( $source, $new_source ) ) {
+			return $new_source;
 		}
 
 		return $source;
