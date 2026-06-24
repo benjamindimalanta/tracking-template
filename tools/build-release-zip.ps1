@@ -26,7 +26,8 @@ Write-Host "Building tracking-template-$Version.zip from $PluginDir"
 if (Test-Path $Staging) { Remove-Item -Recurse -Force $Staging }
 New-Item -ItemType Directory -Path $StagingPlugin -Force | Out-Null
 
-robocopy $PluginDir $StagingPlugin /E /XD .git .next node_modules /XF *.zip /NFL /NDL /NJH /NJS /nc /ns /np | Out-Null
+# Runtime-only package: exclude dev/docs folders and VCS metadata.
+robocopy $PluginDir $StagingPlugin /E /XD .git .next node_modules docs tools google-apps googleappsscript /XF *.zip /NFL /NDL /NJH /NJS /nc /ns /np | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed with exit code $LASTEXITCODE" }
 
 New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
