@@ -16,6 +16,7 @@ class ADCT_Updater {
 		add_filter( 'pre_set_site_transient_update_plugins', array( __CLASS__, 'inject_update' ) );
 		add_filter( 'plugins_api', array( __CLASS__, 'plugin_info' ), 20, 3 );
 		add_filter( 'upgrader_source_selection', array( __CLASS__, 'fix_source_directory' ), 10, 4 );
+		add_action( 'upgrader_process_complete', array( __CLASS__, 'after_plugin_update' ), 10, 2 );
 	}
 
 	public static function get_plugin_basename() {
@@ -274,5 +275,90 @@ class ADCT_Updater {
 		}
 
 		return $source;
+	}
+
+	/**
+	 * After update, repair known nested install layouts on some hosts.
+	 *
+	 * @param WP_Upgrader $upgrader Upgrader instance.
+	 * @param array       $options  Upgrade context.
+	 */
+	public static function after_plugin_update( $upgrader, $options ) {
+		unset( $upgrader );
+
+		if ( empty( $options['action'] ) || 'update' !== $options['action'] ) {
+			return;
+		}
+
+		if ( empty( $options['type'] ) || 'plugin' !== $options['type'] ) {
+			return;
+		}
+
+		if ( empty( $options['plugins'] ) || ! is_array( $options['plugins'] ) ) {
+			return;
+		}
+
+		if ( ! in_array( self::get_plugin_basename(), $options['plugins'], true ) ) {
+			return;
+		}
+
+		self::normalize_install_directory();
+	}
+
+	private static function normalize_install_directory() {
+		global $wp_filesystem;
+
+		if ( ! $wp_filesystem ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+			WP_Filesystem();
+		}
+
+		if ( ! $wp_filesystem ) {
+			return;
+		}
+
+		$plugin_dir    = dirname( ADCT_PLUGIN_FILE );
+		$plugin_folder = basename( $plugin_dir );
+		$nested_root   = trailingslashit( $plugin_dir ) . $plugin_folder;
+
+		$top_main    = trailingslashit( $plugin_dir ) . 'tracking-template.php';
+		$nested_main = trailingslashit( $nested_root ) . 'tracking-template.php';
+
+		// No nested folder, nothing to do.
+		if ( ! $wp_filesystem->is_dir( $nested_root ) ) {
+			return;
+		}
+
+		// Unexpected shape, abort safely.
+		if ( ! $wp_filesystem->exists( $nested_main ) ) {
+			return;
+		}
+
+		$nested_listing = $wp_filesystem->dirlist( $nested_root, false, false );
+		if ( ! is_array( $nested_listing ) ) {
+			return;
+		}
+
+		foreach ( $nested_listing as $name => $info ) {
+			$from = trailingslashit( $nested_root ) . $name;
+			$to   = trailingslashit( $plugin_dir ) . $name;
+
+			if ( $wp_filesystem->exists( $to ) ) {
+				$wp_filesystem->delete( $to, true );
+			}
+
+			$wp_filesystem->move( $from, $to, true );
+		}
+
+		$wp_filesystem->delete( $nested_root, true );
+
+		// If top plugin file still missing, leave a diagnostic transient.
+		if ( ! $wp_filesystem->exists( $top_main ) ) {
+			set_transient(
+				'adct_updater_install_warning',
+				'Tracking Template update completed, but plugin file path could not be normalized automatically.',
+				HOUR_IN_SECONDS
+			);
+		}
 	}
 }
